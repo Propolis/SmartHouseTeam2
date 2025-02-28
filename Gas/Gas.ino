@@ -1,7 +1,7 @@
-#define GAS_SENSOR_PIN 35  // Датчик дыма MQ-2 на GPIO35 (D35)
+#define GAS_SENSOR_PIN 32  // Датчик дыма MQ-2 на GPIO35 (D35)
 
 // Пороговое значение, при котором считается, что есть дым
-#define SMOKE_THRESHOLD 2000  
+#define SMOKE_THRESHOLD 900  //значение 900 с первого раза работает, но более реально значение - 2000, но это надо максимально близко подносить зажигалку
 
 void setup() {
     Serial.begin(115200);  // Запускаем Serial Monitor
