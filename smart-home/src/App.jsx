@@ -1,6 +1,7 @@
+// App.jsx
 import React, { useState, useEffect } from 'react';
-import { Chart } from 'chart.js/auto';
-import './style.css';
+import Header from './Header';
+import Tabs from './Tabs';
 
 const App = () => {
     const [temperature, setTemperature] = useState(0);
@@ -16,9 +17,11 @@ const App = () => {
 
     useEffect(() => {
         const fetchData = () => {
-            fetch('/data')
+            // Если не настроен proxy, используйте полный URL:
+            fetch('http://localhost:3001/data')
                 .then(response => response.json())
-                .then(data => {
+                .then(result => {
+                    const data = result.data || result; // Извлекаем данные, если они обёрнуты в "data"
                     setTemperature(data.temperature);
                     setHumidity(data.humidity);
                     setMotion(data.motion);
@@ -35,7 +38,8 @@ const App = () => {
                     if (data.smoke === "Обнаружен") {
                         addNotification("Дым обнаружен");
                     }
-                });
+                })
+                .catch(err => console.error("Ошибка получения данных:", err));
         };
 
         const interval = setInterval(fetchData, 2000);
@@ -89,8 +93,10 @@ const App = () => {
     return (
         <div>
             <Header />
-            <Tabs />
-            <Microclimate
+            <Tabs
+                motion={motion}
+                smoke={smoke}
+                notifications={notifications}
                 temperature={temperature}
                 humidity={humidity}
                 fanThreshold={fanThreshold}
@@ -99,157 +105,11 @@ const App = () => {
                 toggleFan={toggleFan}
                 setFanThresholdValue={setFanThresholdValue}
                 toggleAutoMode={toggleAutoMode}
-            />
-            <Lighting
                 led1State={led1State}
                 led2State={led2State}
                 toggleLED1={toggleLED1}
                 toggleLED2={toggleLED2}
             />
-            <Sensors
-                motion={motion}
-                smoke={smoke}
-                notifications={notifications}
-            />
-        </div>
-    );
-};
-
-const Header = () => {
-    const [dateTime, setDateTime] = useState({
-        date: 'Загрузка...',
-        time: 'Загрузка...'
-    });
-
-    useEffect(() => {
-        const updateDateTime = () => {
-            const now = new Date();
-            const date = now.toLocaleDateString('ru-RU');
-            const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-            setDateTime({ date, time });
-        };
-
-        const interval = setInterval(updateDateTime, 1000);
-        return () => clearInterval(interval);
-    }, []);
-
-    return (
-        <div className="header">
-            <h1>Умный дом</h1>
-            <div className="info">
-                <div>Ростов-на-Дону</div>
-                <div>{dateTime.date}</div>
-                <div>{dateTime.time}</div>
-            </div>
-        </div>
-    );
-};
-
-const Tabs = () => {
-    const [activeTab, setActiveTab] = useState('Microclimate');
-
-    const openTab = (tabName) => {
-        setActiveTab(tabName);
-    };
-
-    return (
-        <div>
-            <div className="tab">
-                <button className={`tablinks ${activeTab === 'Microclimate' ? 'active' : ''}`} onClick={() => openTab('Microclimate')}>Микроклимат</button>
-                <button className={`tablinks ${activeTab === 'Lighting' ? 'active' : ''}`} onClick={() => openTab('Lighting')}>Освещение</button>
-                <button className={`tablinks ${activeTab === 'Sensors' ? 'active' : ''}`} onClick={() => openTab('Sensors')}>Датчики</button>
-            </div>
-            <div className="tabcontent" style={{ display: activeTab === 'Microclimate' ? 'block' : 'none' }}>
-                <Microclimate />
-            </div>
-            <div className="tabcontent" style={{ display: activeTab === 'Lighting' ? 'block' : 'none' }}>
-                <Lighting />
-            </div>
-            <div className="tabcontent" style={{ display: activeTab === 'Sensors' ? 'block' : 'none' }}>
-                <Sensors />
-            </div>
-        </div>
-    );
-};
-
-const Microclimate = ({ temperature, humidity, fanThreshold, autoMode, fanState, toggleFan, setFanThresholdValue, toggleAutoMode }) => {
-    return (
-        <div>
-            <h2>Микроклимат</h2>
-            <p>Температура: {temperature} C</p>
-            <p>Влажность: {humidity} %</p>
-            <div>
-                <div className="chart-container">
-                    <canvas id="temperatureChart"></canvas>
-                </div>
-                <div className="chart-container">
-                    <canvas id="humidityChart"></canvas>
-                </div>
-            </div>
-            <h2>Управление вентилятором</h2>
-            <div className="fan-tile">
-                <img src="https://cdn-icons-png.flaticon.com/512/979/979619.png" alt="Вентилятор" />
-                <h3>Вентилятор</h3>
-                <label className="switch">
-                    <input type="checkbox" checked={fanState} onChange={toggleFan} />
-                    <span className="slider"></span>
-                </label>
-            </div>
-            <div className="flex-row">
-                <p>Порог вентилятора: {fanThreshold} C</p>
-                <input type="number" id="fanThresholdInput" placeholder="Введите порог" />
-                <button onClick={setFanThresholdValue}>Установить</button>
-            </div>
-            <div className="flex-row">
-                <p>Режим управления: {autoMode ? 'Автоматический' : 'Ручной'}</p>
-                <button onClick={toggleAutoMode}>Переключить режим</button>
-            </div>
-        </div>
-    );
-};
-
-const Lighting = ({ led1State, led2State, toggleLED1, toggleLED2 }) => {
-    return (
-        <div>
-            <h2>Управление освещением</h2>
-            <div className="light-tile">
-                <img src="https://cdn-icons-png.flaticon.com/512/702/702814.png" alt="Лампочка" />
-                <h3>Гостиная</h3>
-                <p>Свет</p>
-                <label className="switch">
-                    <input type="checkbox" checked={led1State} onChange={toggleLED1} />
-                    <span className="slider"></span>
-                </label>
-            </div>
-            <div className="light-tile">
-                <img src="https://cdn-icons-png.flaticon.com/512/702/702814.png" alt="Лампочка" />
-                <h3>Спальня</h3>
-                <p>Свет</p>
-                <label className="switch">
-                    <input type="checkbox" checked={led2State} onChange={toggleLED2} />
-                    <span className="slider"></span>
-                </label>
-            </div>
-        </div>
-    );
-};
-
-const Sensors = ({ motion, smoke, notifications }) => {
-    return (
-        <div>
-            <h2>Датчики</h2>
-            <p>Движение: {motion}</p>
-            <p>Дым: {smoke}</p>
-            <div className="notifications">
-                <h3>Уведомления</h3>
-                <div id="notifications">
-                    {notifications.map((notification, index) => (
-                        <div key={index} className="notification">
-                            <strong>{notification.time}</strong>: {notification.message}
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 };

@@ -1,6 +1,7 @@
 {
   "name": "smart-home",
   "version": "1.0.0",
+  "proxy": "http://localhost:3001",
   "description": "Умный дом на React",
   "main": "index.js",
   "scripts": {
