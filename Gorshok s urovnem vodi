@@ -1,0 +1,136 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+#define sensor 33          // Пин для подключения датчика влажности почвы
+#define waterLevelSensor 34 // Пин для подключения датчика уровня воды HW-038
+#define relay 4            // Пин для управления реле (насосом/клапаном)
+
+WebServer server(80);
+
+// Данные для подключения к Wi-Fi
+const char* ssid = "Vardges";
+const char* password = "12345678";
+
+// Значения датчика влажности
+int dryValue = 4095;       // Значение датчика в сухом состоянии (12 бит)
+int wetValue = 0;          // Значение датчика в мокром состоянии (12 бит)
+
+// Пороговые значения влажности (будут обновляться из приложения)
+int moistureThresholdLow = 25;  // Нижний порог влажности (по умолчанию 25%)
+int moistureThresholdHigh = 60; // Верхний порог влажности (по умолчанию 60%)
+
+bool isWatering = false;   // Флаг, указывающий, идет ли полив
+bool autoMode = true;      // Флаг, указывающий, включен ли автополив
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Initializing...");
+
+  // Настройка АЦП
+  analogReadResolution(12); // Устанавливаем разрешение АЦП на 12 бит (0-4095)
+  analogSetAttenuation(ADC_11db); // Устанавливаем ослабление для полного диапазона напряжения
+
+  // Подключение к Wi-Fi
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP()); // Выводим IP-адрес
+
+  // Настройка пина реле
+  pinMode(relay, OUTPUT);
+  digitalWrite(relay, HIGH); // Выключаем реле при старте
+
+  // Настройка веб-сервера
+  server.on("/", handleRoot);
+  server.on("/data", handleData);
+  server.on("/toggleAutoMode", handleToggleAutoMode);
+  server.on("/setThresholds", handleSetThresholds);
+
+  server.begin();
+  Serial.println("HTTP server started"); // Сообщение о запуске сервера
+}
+
+void loop() {
+  server.handleClient();
+  soilMoisture();
+}
+
+void soilMoisture() {
+  int value = analogRead(sensor); // Чтение значения с датчика
+  int moisturePercent = map(value, dryValue, wetValue, 0, 100);
+  moisturePercent = constrain(moisturePercent, 0, 100); // Ограничение от 0 до 100%
+
+  if (autoMode) {
+    if (moisturePercent < moistureThresholdLow && !isWatering) {
+      digitalWrite(relay, LOW);
+      isWatering = true;
+    } else if (moisturePercent >= moistureThresholdHigh && isWatering) {
+      digitalWrite(relay, HIGH);
+      isWatering = false;
+    }
+  }
+}
+
+int getWaterLevel() {
+  int value = analogRead(waterLevelSensor); // Чтение значения с датчика уровня воды
+  int waterLevelPercent = map(value, 0, 4095, 0, 100); // Преобразуем значение в проценты
+  waterLevelPercent = constrain(waterLevelPercent, 0, 100); // Ограничение от 0 до 100%
+  return waterLevelPercent;
+}
+
+void handleRoot() {
+  String html = "<html><head><meta charset='UTF-8'>";
+  html += "<title>Умный горшок</title>";
+  html += "<script>";
+  html += "function updateData() {";
+  html += "  fetch('/data').then(response => response.json()).then(data => {";
+  html += "    document.getElementById('moisture').innerText = data.moisture + ' %';";
+  html += "    document.getElementById('waterLevel').innerText = data.waterLevel + ' %';";
+  html += "    document.getElementById('autoMode').innerText = data.autoMode ? 'Автоматический' : 'Ручной';";
+  html += "  });";
+  html += "}";
+  html += "setInterval(updateData, 1000);";
+  html += "</script>";
+  html += "</head><body>";
+  html += "<h1>Умный горшок</h1>";
+  html += "<p>Влажность почвы: <span id='moisture'>0 %</span></p>";
+  html += "<p>Уровень воды: <span id='waterLevel'>0 %</span></p>";
+  html += "<p>Режим: <span id='autoMode'>Автоматический</span></p>";
+  html += "<button onclick=\"fetch('/toggleAutoMode').then(response => response.text()).then(text => alert(text)); updateData();\">Переключить режим</button>";
+  html += "<form onsubmit=\"event.preventDefault(); fetch('/setThresholds?low=' + document.getElementById('low').value + '&high=' + document.getElementById('high').value).then(response => response.text()).then(text => alert(text));\">";
+  html += "<input type='number' id='low' placeholder='Нижний порог'><input type='number' id='high' placeholder='Верхний порог'><button type='submit'>Установить пороги</button>";
+  html += "</form>";
+  html += "</body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleData() {
+  int moisturePercent = map(analogRead(sensor), dryValue, wetValue, 0, 100);
+  int waterLevelPercent = getWaterLevel();
+  String data = "{";
+  data += "\"moisture\": " + String(moisturePercent) + ",";
+  data += "\"waterLevel\": " + String(waterLevelPercent) + ",";
+  data += "\"autoMode\": " + String(autoMode ? "true" : "false");
+  data += "}";
+  server.send(200, "application/json", data);
+}
+
+void handleToggleAutoMode() {
+  autoMode = !autoMode;
+  server.send(200, "text/plain", "Режим управления " + String(autoMode ? "автоматический" : "ручной"));
+}
+
+void handleSetThresholds() {
+  if (server.hasArg("low") && server.hasArg("high")) {
+    moistureThresholdLow = server.arg("low").toInt();
+    moistureThresholdHigh = server.arg("high").toInt();
+    server.send(200, "text/plain", "Пороги установлены: низкий - " + String(moistureThresholdLow) + "%, высокий - " + String(moistureThresholdHigh) + "%");
+  } else {
+    server.send(400, "text/plain", "Неверные параметры");
+  }
+}
