@@ -1,0 +1,194 @@
+body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: white; /* Белый фон */
+            color: #004d40;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #0698b1;
+            color: white;
+        }
+        .header h1 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+        .header h1 img {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+        }
+        .header .info {
+            font-size: 14px;
+            text-align: right;
+        }
+        .header .info div {
+            margin: 2px 0;
+        }
+        .tab {
+            overflow: hidden;
+            background-color: #69c9e1;
+            display: flex;
+            justify-content: center;
+        }
+        .tab button {
+            background-color: inherit;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 20px;
+            transition: 0.3s;
+            color: white;
+            font-size: 16px;
+        }
+        .tab button:hover {
+            background-color: #3ca4be; /* Светло-голубой при наведении */
+        }
+        .tab button.active {
+            background-color: #0ea8c4; /* Голубой для активной вкладки */
+        }
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            border-top: none;
+            background-color: #E0F7FF; /* Светло-голубой фон */
+            margin: 40px; /* Увеличенный отступ */
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        p {
+            font-size: 18px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4682B4; /* Темно-голубой */
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #6CA6CD; /* Светло-голубой при наведении */
+        }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .chart-container {
+            width: 30%; /* Уменьшенный размер графиков */
+            display: inline-block;
+            margin: 10px;
+        }
+        .flex-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+        .notifications {
+            margin-top: 20px;
+            max-width: 66.66%; /* Ширина уведомлений не больше 2/3 страницы */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .notification {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background-color: #37bbd2; /* Новый цвет уведомлений */
+            color: white; /* Белый текст для контраста */
+            border: none; /* Убрана обводка */
+        }
+        .light-tile, .fan-tile, .sensor-tile {
+            display: inline-block;
+            width: 150px;
+            padding: 15px;
+            margin: 10px;
+            text-align: center;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .light-tile img, .fan-tile img {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 10px;
+        }
+        .light-tile h3, .fan-tile h3, .sensor-tile h3 {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+        .light-tile p, .fan-tile p, .sensor-tile p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #555;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #4CAF50;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .data-tile {
+            display: inline-block;
+            width: 200px;
+            padding: 20px;
+            margin: 10px;
+            text-align: center;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .data-tile h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #555;
+        }
+        .data-tile p {
+            margin: 10px 0 0;
+            font-size: 36px; /* Увеличенный размер значений */
+            font-weight: bold;
+            color: #004d40;
+        }

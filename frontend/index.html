@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Умный дом</title>
+    <!-- Подключаем Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Функция для генерации временных меток за последние 12 часов
+        function generateTimeLabels() {
+            const now = new Date();
+            const labels = [];
+            for (let i = 11; i >= 0; i--) {
+                const time = new Date(now.getTime() - i * 3600 * 1000);
+                labels.push(time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+            }
+            return labels;
+        }
+
+        // Пример данных для графиков (замените на реальные данные)
+        const labels = generateTimeLabels();
+        const temperatureData = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10) + 20); // Пример данных температуры
+        const humidityData = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10) + 40); // Пример данных влажности
+
+        // Массив для хранения уведомлений
+        let notifications = [];
+
+        // Функция для обновления данных
+        function updateData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('temperature').innerText = data.temperature + ' C';
+                    document.getElementById('humidity').innerText = data.humidity + ' %';
+                    document.getElementById('motion').innerText = data.motion;
+                    document.getElementById('smoke').innerText = data.smoke;
+                    document.getElementById('fanThreshold').innerText = data.fanThreshold + ' C';
+                    document.getElementById('autoMode').innerText = data.autoMode ? 'Автоматический' : 'Ручной';
+                    document.getElementById('led1Status').innerText = data.led1State ? 'ВКЛ' : 'ВЫКЛ';
+                    document.getElementById('led2Status').innerText = data.led2State ? 'ВКЛ' : 'ВЫКЛ';
+                    document.getElementById('fanStatus').innerText = data.fanState ? 'ВКЛ' : 'ВЫКЛ';
+
+                    // Обновление слайдеров
+                    document.getElementById('led1Switch').checked = data.led1State;
+                    document.getElementById('led2Switch').checked = data.led2State;
+                    document.getElementById('fanSwitch').checked = data.fanState;
+
+                    // Добавление уведомлений
+                    if (data.motion === "Обнаружено") {
+                        addNotification("Движение обнаружено");
+                    }
+                    if (data.smoke === "Обнаружен") {
+                        addNotification("Дым обнаружен");
+                    }
+                });
+        }
+
+        // Функция для добавления уведомления
+        function addNotification(message) {
+            const now = new Date();
+            const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            notifications.unshift({ message, time }); // Добавляем в начало массива
+            if (notifications.length > 10) {
+                notifications.pop(); // Ограничиваем количество уведомлений
+            }
+            updateNotifications();
+        }
+
+        // Функция для обновления списка уведомлений
+        function updateNotifications() {
+            const notificationsContainer = document.getElementById('notifications');
+            if (notifications.length === 0) {
+                notificationsContainer.innerHTML = `
+                    <div class="notification">
+                        Уведомлений нет
+                    </div>
+                `;
+            } else {
+                notificationsContainer.innerHTML = notifications.map(notification => `
+                    <div class="notification">
+                        <strong>${notification.time}</strong>: ${notification.message}
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Функции для управления устройствами
+        function toggleLED1() {
+            fetch('/toggleLED1')
+                .then(response => response.text())
+                .then(text => {
+                    document.getElementById('led1Status').innerText = text.trim();
+                });
+        }
+
+        function toggleLED2() {
+            fetch('/toggleLED2')
+                .then(response => response.text())
+                .then(text => {
+                    document.getElementById('led2Status').innerText = text.trim();
+                });
+        }
+
+        function toggleFan() {
+            fetch('/toggleFan')
+                .then(response => response.text())
+                .then(text => {
+                    document.getElementById('fanStatus').innerText = text.trim();
+                });
+        }
+
+        function setFanThreshold() {
+            const threshold = document.getElementById('fanThresholdInput').value;
+            fetch('/setFanThreshold?threshold=' + threshold)
+                .then(response => response.text())
+                .then(text => {
+                    alert(text);
+                    updateData();
+                });
+        }
+
+        function toggleAutoMode() {
+            fetch('/toggleAutoMode')
+                .then(response => response.text())
+                .then(text => {
+                    alert(text);
+                    updateData();
+                });
+        }
+
+        // Функция для переключения вкладок
+        function openTab(evt, tabName) {
+            const tabcontent = document.getElementsByClassName("tabcontent");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            const tablinks = document.getElementsByClassName("tablinks");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // Функция для обновления даты и времени
+        function updateDateTime() {
+            const now = new Date();
+            const date = now.toLocaleDateString('ru-RU');
+            const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('dateTime').innerHTML = `
+                <div>Ростов-на-Дону</div>
+                <div>${date}</div>
+                <div>${time}</div>
+            `;
+        }
+
+        // Инициализация графиков
+        function initCharts() {
+            const ctxTemp = document.getElementById('temperatureChart').getContext('2d');
+            new Chart(ctxTemp, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Температура (°C)',
+                            data: temperatureData,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderWidth: 2,
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                }
+            });
+
+            const ctxHumidity = document.getElementById('humidityChart').getContext('2d');
+            new Chart(ctxHumidity, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Влажность (%)',
+                            data: humidityData,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderWidth: 2,
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                }
+            });
+        }
+
+        // Обновление данных каждые 2 секунды
+        setInterval(updateData, 2000);
+
+        // Обновление даты и времени каждую секунду
+        setInterval(updateDateTime, 1000);
+
+        // Инициализация графиков и даты/времени при загрузке страницы
+        window.onload = function() {
+            initCharts();
+            updateDateTime();
+            document.getElementsByClassName('tablinks')[0].click();
+        };
+    </script>
+</head>
+<body>
+    <div class="header">
+        <h1><img src="https://cdn-icons-png.flaticon.com/512/619/619032.png" alt="Эмблема">"Прекрасное название"</h1>
+        <div class="info" id="dateTime">
+            <div>Ростов-на-Дону</div>
+            <div>Загрузка...</div>
+            <div>Загрузка...</div>
+        </div>
+    </div>
+
+    <!-- Вкладки -->
+    <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'Microclimate')">Микроклимат</button>
+        <button class="tablinks" onclick="openTab(event, 'Lighting')">Освещение</button>
+        <button class="tablinks" onclick="openTab(event, 'Sensors')">Датчики</button>
+    </div>
+
+    <!-- Вкладка "Микроклимат" -->
+    <div id="Microclimate" class="tabcontent">
+        <h2>Микроклимат</h2>
+        <div class="data-tile">
+            <h3>Температура</h3>
+            <p id="temperature">0 C</p>
+        </div>
+        <div class="data-tile">
+            <h3>Влажность</h3>
+            <p id="humidity">0 %</p>
+        </div>
+        <div>
+            <div class="chart-container">
+                <canvas id="temperatureChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="humidityChart"></canvas>
+            </div>
+        </div>
+        <h2>Управление вентилятором</h2>
+        <div class="fan-tile">
+            <img src="https://cdn-icons-png.flaticon.com/512/979/979619.png" alt="Вентилятор">
+            <h3>Вентилятор</h3>
+            <label class="switch">
+                <input type="checkbox" id="fanSwitch" onchange="toggleFan()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="flex-row">
+            <p>Порог вентилятора: <span id="fanThreshold">30 C</span></p>
+            <input type="number" id="fanThresholdInput" placeholder="Введите порог">
+            <button onclick="setFanThreshold()">Установить</button>
+        </div>
+        <div class="flex-row">
+            <p>Режим управления: <span id="autoMode">Ручной</span></p>
+            <button onclick="toggleAutoMode()">Переключить режим</button>
+        </div>
+    </div>
+
+    <!-- Вкладка "Освещение" -->
+    <div id="Lighting" class="tabcontent">
+        <h2>Управление освещением</h2>
+        <div class="light-tile">
+            <img src="https://cdn-icons-png.flaticon.com/512/702/702814.png" alt="Лампочка">
+            <h3>Гостиная</h3>
+            <p>Свет</p>
+            <label class="switch">
+                <input type="checkbox" id="led1Switch" onchange="toggleLED1()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="light-tile">
+            <img src="https://cdn-icons-png.flaticon.com/512/702/702814.png" alt="Лампочка">
+            <h3>Спальня</h3>
+            <p>Свет</p>
+            <label class="switch">
+                <input type="checkbox" id="led2Switch" onchange="toggleLED2()">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Вкладка "Датчики" -->
+    <div id="Sensors" class="tabcontent">
+        <h2>Датчики</h2>
+        <div class="sensor-tile">
+            <h3>Движение</h3>
+            <p><span id="motion">Нет движения</span></p>
+        </div>
+        <div class="sensor-tile">
+            <h3>Дым</h3>
+            <p><span id="smoke">Не обнаружен</span></p>
+        </div>
+        <div class="notifications">
+            <h3>Уведомления</h3>
+            <div id="notifications">
+                <div class="notification">
+                    Уведомлений нет
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
