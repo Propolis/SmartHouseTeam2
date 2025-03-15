@@ -1,24 +1,33 @@
-// Sensors.jsx
 import React from 'react';
 
-const Sensors = ({ motion, smoke, notifications }) => {
+function Sensors({ motion, smoke, notifications }) {
     return (
-        <div>
+        <div className="tabcontent">
             <h2>Датчики</h2>
-            <p>Движение: {motion}</p>
-            <p>Дым: {smoke}</p>
+            <div className="sensor-tile">
+                <h3>Движение</h3>
+                <p><span id="motion">{motion}</span></p>
+            </div>
+            <div className="sensor-tile">
+                <h3>Дым</h3>
+                <p><span id="smoke">{smoke}</span></p>
+            </div>
             <div className="notifications">
                 <h3>Уведомления</h3>
                 <div id="notifications">
-                    {notifications && notifications.map((notification, index) => (
-                        <div key={index} className="notification">
-                            <strong>{notification.time}</strong>: {notification.message}
-                        </div>
-                    ))}
+                    {notifications.length === 0 ? (
+                        <div className="notification">Уведомлений нет</div>
+                    ) : (
+                        notifications.map((notification, index) => (
+                            <div key={index} className="notification">
+                                <strong>{notification.time}</strong>: {notification.message}
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>
     );
-};
+}
 
 export default Sensors;
