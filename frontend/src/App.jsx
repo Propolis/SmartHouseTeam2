@@ -18,7 +18,7 @@ const App = () => {
     useEffect(() => {
         const fetchData = () => {
             // Если не настроен proxy, используйте полный URL:
-            fetch('http://localhost:3001/data')
+            fetch('/data')
                 .then(response => response.json())
                 .then(result => {
                     const data = result.data || result; // Извлекаем данные, если они обёрнуты в "data"
@@ -89,6 +89,7 @@ const App = () => {
                 setAutoMode(prev => !prev);
             });
     };
+
 
     return (
         <div>
