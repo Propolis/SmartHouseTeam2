@@ -16,35 +16,37 @@ const App = () => {
     const [notifications, setNotifications] = useState([]);
 
     useEffect(() => {
-        const fetchData = () => {
-            // Если не настроен proxy, используйте полный URL:
-            fetch('http://localhost:3001/data')
-                .then(response => response.json())
-                .then(result => {
-                    const data = result.data || result; // Извлекаем данные, если они обёрнуты в "data"
-                    setTemperature(data.temperature);
-                    setHumidity(data.humidity);
-                    setMotion(data.motion);
-                    setSmoke(data.smoke);
-                    setFanThreshold(data.fanThreshold);
-                    setAutoMode(data.autoMode);
-                    setLed1State(data.led1State);
-                    setLed2State(data.led2State);
-                    setFanState(data.fanState);
+    const fetchData = () => {
+        fetch('/data')
+            .then(response => response.json())
+            .then(result => {
+                console.log('Результат запроса:', result);
+                const data = result.data || result;
+                console.log('Извлеченные данные:', data);
+                setTemperature(data.temperature);
+                setHumidity(data.humidity);
+                setMotion(data.motion);
+                setSmoke(data.smoke);
+                setFanThreshold(data.fanThreshold);
+                setAutoMode(data.autoMode);
+                setLed1State(data.State_of_Lamp_Bedroom);
+                setLed2State(data.State_of_Lamp_Bathroom);
+                setFanState(data.State_of_Ventilation);
 
-                    if (data.motion === "Обнаружено") {
-                        addNotification("Движение обнаружено");
-                    }
-                    if (data.smoke === "Обнаружен") {
-                        addNotification("Дым обнаружен");
-                    }
-                })
-                .catch(err => console.error("Ошибка получения данных:", err));
-        };
+                if (data.motion === "Обнаружено") {
+                    addNotification("Движение обнаружено");
+                }
+                if (data.smoke === "Обнаружен") {
+                    addNotification("Дым обнаружен");
+                }
+            })
+            .catch(err => console.error("Ошибка получения данных:", err));
+    };
 
-        const interval = setInterval(fetchData, 2000);
-        return () => clearInterval(interval);
-    }, []);
+    const interval = setInterval(fetchData, 2000);
+    return () => clearInterval(interval);
+}, []);
+
 
     const addNotification = (message) => {
         const now = new Date();
@@ -53,23 +55,39 @@ const App = () => {
         setNotifications(prev => [newNotification, ...prev].slice(0, 10));
     };
 
-    const toggleLED1 = () => {
-        fetch('/toggleLED1')
-            .then(response => response.text())
-            .then(text => setLed1State(text.trim() === 'ВКЛ'));
-    };
+    // const toggleLED1 = () => {
+    //     fetch('/toggleLED1')
+    //         .then(response => response.text())
+    //         .then(text => setLed1State(text.trim() === 'ВКЛ'));
+    // };
+    //
+    // const toggleLED2 = () => {
+    //     fetch('/toggleLED2')
+    //         .then(response => response.text())
+    //         .then(text => setLed2State(text.trim() === 'ВКЛ'));
+    // };
+    //
+    // const toggleFan = () => {
+    //     fetch('/toggleFan')
+    //         .then(response => response.text())
+    //         .then(text => setFanState(text.trim() === 'ВКЛ'));
+    // };
+        const toggleModule = (moduleName) => {
+          fetch(`/api/toggle-module/${moduleName}`, { method: 'POST' })
+            .then((response) => response.json())
+            .then((data) => {
+              const newValue = data[moduleName]; // "0" или "1"
+              // Обновляем state для нужного модуля
+              if (moduleName === 'Lamp_Bedroom') {
+                setLed1State(newValue === "1");
+              } else if (moduleName === 'Lamp_Bathroom') {
+                setLed2State(newValue === "1");
+              }
+            })
+            .catch((err) => console.error("Ошибка переключения:", err));
+        };
 
-    const toggleLED2 = () => {
-        fetch('/toggleLED2')
-            .then(response => response.text())
-            .then(text => setLed2State(text.trim() === 'ВКЛ'));
-    };
 
-    const toggleFan = () => {
-        fetch('/toggleFan')
-            .then(response => response.text())
-            .then(text => setFanState(text.trim() === 'ВКЛ'));
-    };
 
     const setFanThresholdValue = () => {
         const threshold = document.getElementById('fanThresholdInput').value;
