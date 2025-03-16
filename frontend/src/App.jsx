@@ -25,16 +25,18 @@ const App = () => {
         fetch('/data') // GET-запрос для получения данных
             .then(response => response.json())
             .then(data => {
-		console.log("Результат запроса:", data);
+                console.log("Результат запроса:", data);
                 setTemperature(data.temperature);
                 setHumidity(data.humidity);
                 setMotion(data.motion);
                 setSmoke(data.smoke);
                 setFanThreshold(data.fanThreshold);
                 setAutoMode(data.autoMode);
-                setLed1State(data.State_of_Lamp_Bedroom);
-                setLed2State(data.State_of_Lamp_Bathroom);
-                setFanState(data.State_of_Ventilation);
+
+                // Обновление состояния устройств
+                setLed1State(data.State_of_Lamp_Bathroom); 
+                setLed2State(data.State_of_Lamp_Bedroom); 
+                setFanState(data.State_of_Ventilation); 
 
                 // Добавление уведомлений
                 if (data.motion === "Обнаружено") {
@@ -50,7 +52,7 @@ const App = () => {
     // Запуск периодического обновления данных
     useEffect(() => {
         fetchData(); // Первоначальный запрос данных
-        const interval = setInterval(fetchData, 2000); // Обновление каждые 2 секунды
+        const interval = setInterval(fetchData, 500); // Обновление каждые 0.5 секунды
         return () => clearInterval(interval); // Очистка интервала при размонтировании
     }, []);
 
@@ -64,34 +66,64 @@ const App = () => {
 
     // Функции для управления устройствами
     const toggleLED1 = () => {
-        fetch('/api/toggle-module/Lamp_Bedroom', { method: 'POST' }) // Указываем метод POST
-            .then(response => response.text())
-            .then(text => setLed1State(text.trim() === 'ВКЛ'))
-            .catch(err => console.error("Ошибка переключения LED1:", err));
+        const newState = !led1State; // Новое состояние
+        fetch('/api/toggle-module/Lamp_Bedroom', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.State_of_Lamp_Bedroom !== undefined) {
+                    setLed1State(data.State_of_Lamp_Bedroom === 1); // Обновляем состояние на основе ответа сервера
+                } else {
+                    console.error("Некорректный ответ от сервера:", data);
+                }
+            })
+            .catch(err => {
+                console.error("Ошибка переключения LED1:", err);
+                setLed1State(!newState); // Откат состояния в случае ошибки
+            });
     };
 
     const toggleLED2 = () => {
-        fetch('/api/toggle-module/Lamp_Bathroom', { method: 'POST' }) // Указываем метод POST
-            .then(response => response.text())
-            .then(text => setLed2State(text.trim() === 'ВКЛ'))
-            .catch(err => console.error("Ошибка переключения LED2:", err));
+        const newState = !led2State; // Новое состояние
+        fetch('/api/toggle-module/RGBLenta_Bedroom', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.State_of_Lamp_Bathroom !== undefined) {
+                    setLed2State(data.State_of_Lamp_Bathroom); // Обновляем состояние на основе ответа сервера
+                } else {
+                    console.error("Некорректный ответ от сервера:", data);
+                }
+            })
+            .catch(err => {
+                console.error("Ошибка переключения LED2:", err);
+                setLed2State(!newState); // Откат состояния в случае ошибки
+            });
     };
 
     const toggleFan = () => {
-        fetch('/api/toggle-module/Ventilation', { method: 'POST' }) // Указываем метод POST
-            .then(response => response.text())
-            .then(text => setFanState(text.trim() === 'ВКЛ'))
-            .catch(err => console.error("Ошибка переключения вентилятора:", err));
+        const newState = !fanState; // Новое состояние
+        fetch('/api/toggle-module/powerVentilation', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.State_of_Ventilation !== undefined) {
+                    setFanState(data.State_of_Ventilation); // Обновляем состояние на основе ответа сервера
+                } else {
+                    console.error("Некорректный ответ от сервера:", data);
+                }
+            })
+            .catch(err => {
+                console.error("Ошибка переключения вентилятора:", err);
+                setFanState(!newState); // Откат состояния в случае ошибки
+            });
     };
 
     const setFanThresholdValue = () => {
         const threshold = document.getElementById('fanThresholdInput').value;
         fetch('/api/toggle-module/fanThreshold', {
-            method: 'POST', // Указываем метод POST
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ threshold }), // Передаем порог в теле запроса
+            body: JSON.stringify({ threshold }),
         })
             .then(response => response.text())
             .then(text => {
@@ -102,7 +134,7 @@ const App = () => {
     };
 
     const toggleAutoMode = () => {
-        fetch('/api/toggle-module/autoMode', { method: 'POST' }) // Указываем метод POST
+        fetch('/api/toggle-module/autoMode', { method: 'POST' })
             .then(response => response.text())
             .then(text => {
                 alert(text);
