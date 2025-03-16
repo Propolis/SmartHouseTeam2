@@ -17,7 +17,7 @@ mqtt_handler = MQTTHandler(
     port=13010,
     user="u_TNQXY5",
     password="6En7SeKP",
-    modules=["Lamp_Bedroom", "Lamp_Bathroom", "Water", "Ventilation"]
+    modules=["RGBLenta_Bedroom", "Lamp_Bathroom", "Water", "powerVentilation"]
 )
 
 
@@ -39,18 +39,16 @@ HEADERS =  {
 def get_data():
 
     data = {
-        "data": {
-            "temperature": 100,
-            "humidity": 100,
-            "motion": "Нет движения",
-            "smoke": "Не обнаружен",
-            "fanThreshold": 100,
-            "autoMode": False,
-            "State_of_Lamp_Bedroom": mqtt_handler.sensor_states.get("Lamp_Bedroom"),
-            "State_of_Lamp_Bathroom": mqtt_handler.sensor_states.get("Lamp_Bathroom"),
-            "State_of_Ventilation": mqtt_handler.sensor_states.get("Ventilation"),
-            "State_of_Water": mqtt_handler.sensor_states.get("Water"),
-        }
+        "temperature": 19,
+        "humidity": 64,
+        "motion": "Нет движения",
+        "smoke": "Не обнаружен",
+        "fanThreshold": 20,
+        "autoMode": 1,
+        "State_of_Lamp_Bedroom": mqtt_handler.sensor_states.get("RGBLenta_Bedroom"),
+        "State_of_Lamp_Bathroom": mqtt_handler.sensor_states.get("Lamp_Bathroom"),
+        "State_of_Ventilation": mqtt_handler.sensor_states.get("powerVentilation"),
+        "State_of_Water": mqtt_handler.sensor_states.get("Water"),
     }
 
     return jsonify(data), 200
@@ -66,7 +64,7 @@ def toggle_module(module_name):
         return jsonify({"status": "error", "message": f"Неизвестный модуль: {module_name}"}), 400
 
     current = mqtt_handler.sensor_states.get(module_name, "0")
-    new_state = "1" if current == "0" else "0"
+    new_state = "true" if current == "false" else "false"
     mqtt_handler.publish(module_name, new_state)
     return jsonify({"status": "success", module_name: new_state}), 200
 
