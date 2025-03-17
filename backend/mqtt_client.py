@@ -1,12 +1,5 @@
 import paho.mqtt.client as mqtt
 
-a = {
-    'module': {
-        'topic1': 0,
-        'topic2': 0,
-        'topic3': 0,
-    }
-}
 class MQTTHandler:
     def __init__(self, server, port, user, password, modules: dict[str:str]):
         self.server = server
