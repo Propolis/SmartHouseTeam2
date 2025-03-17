@@ -1,12 +1,13 @@
 import paho.mqtt.client as mqtt
 
+
 class MQTTHandler:
-    def __init__(self, server, port, user, password, modules: dict[str:str]):
+    def __init__(self, server, port, user, password, topics: dict[str:str]):
         self.server = server
         self.port = port
-        self.modules = modules
+        self.modules = topics
         # Инициализируем состояния для каждого модуля (по умолчанию "0" — выключено)
-        self.sensor_states = {module: "0" for module in modules}
+        self.sensor_states = {module: "0" for module in topics}
 
         # Создаем MQTT-клиент с новой версией API
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, protocol=mqtt.MQTTv311)
@@ -46,13 +47,8 @@ class MQTTHandler:
 # Пример использования (тестовый запуск)
 if __name__ == "__main__":
     # Задаем параметры подключения и список топиков (модулей)
-    mqtt_handler = MQTTHandler(
-        server="m1.wqtt.ru",
-        port=13010,
-        user="u_TNQXY5",
-        password="6En7SeKP",
-        modules=["Lamp1", "Lamp2"]
-    )
+    mqtt_handler = MQTTHandler(server="m1.wqtt.ru", port=13010, user="u_TNQXY5", password="6En7SeKP",
+                               topics=["Lamp1", "Lamp2"])
 
     # Запускаем MQTT-клиент в фоновом режиме
     mqtt_handler.start()
