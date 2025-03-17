@@ -26,6 +26,7 @@ function Microclimate({ temperature, humidity, fanThreshold, autoMode, fanState,
                     <span className="slider"></span>
                 </label>
             </div>
+
             <div className="flex-row">
                 <p>Порог вентилятора: <span id="fanThreshold">{fanThreshold} C</span></p>
                 <input type="number" id="fanThresholdInput" placeholder="Введите порог" />

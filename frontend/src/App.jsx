@@ -22,37 +22,44 @@ const App = () => {
 
     // Функция для получения данных с сервера
     const fetchData = () => {
-        fetch('/data') // GET-запрос для получения данных
-            .then(response => response.json())
-            .then(data => {
-                console.log("Результат запроса:", data);
-                setTemperature(data.temperature);
-                setHumidity(data.humidity);
-                setMotion(data.motion);
-                setSmoke(data.smoke);
-                setFanThreshold(data.fanThreshold);
-                setAutoMode(data.autoMode);
+    fetch('/data') // GET-запрос для получения данных
+        .then(response => response.json())
+        .then(data => {
+            console.log("Результат запроса:", data);
+            setTemperature(data.temperature);
+            setHumidity(data.humidity);
+            setMotion(data.motion);
+            setSmoke(data.smoke);
+            setFanThreshold(data.fanThreshold);
+            setAutoMode(data.autoMode);
 
-                // Обновление состояния устройств
-                setLed1State(data.State_of_Lamp_Bathroom); 
-                setLed2State(data.State_of_Lamp_Bedroom); 
-                setFanState(data.State_of_Ventilation); 
+            // Обновление состояния устройств с учетом данных с сервера
+            if (data.State_of_Lamp_Bathroom !== led1State) {
+                setLed1State(data.State_of_Lamp_Bathroom === "true"); // Обновляем состояние на фронте
+            }
+            if (data.State_of_Lamp_Bedroom !== led2State) {
+                setLed2State(data.State_of_Lamp_Bedroom === "true"); // Обновляем состояние на фронте
+            }
+            if (data.State_of_Ventilation !== fanState) {
+                setFanState(data.State_of_Ventilation === "true"); // Обновляем состояние вентилятора на фронте
+            }
 
-                // Добавление уведомлений
-                if (data.motion === "Обнаружено") {
-                    addNotification("Движение обнаружено");
-                }
-                if (data.smoke === "Обнаружен") {
-                    addNotification("Дым обнаружен");
-                }
-            })
-            .catch(err => console.error("Ошибка получения данных:", err));
-    };
+            // Добавление уведомлений
+            if (data.motion === "Обнаружено") {
+                addNotification("Движение обнаружено");
+            }
+            if (data.smoke === "Обнаружен") {
+                addNotification("Дым обнаружен");
+            }
+        })
+        .catch(err => console.error("Ошибка получения данных:", err));
+};
+
 
     // Запуск периодического обновления данных
     useEffect(() => {
         fetchData(); // Первоначальный запрос данных
-        const interval = setInterval(fetchData, 500); // Обновление каждые 0.5 секунды
+        const interval = setInterval(fetchData, 1000); // Обновление каждые 0.5 секунды
         return () => clearInterval(interval); // Очистка интервала при размонтировании
     }, []);
 
@@ -99,22 +106,27 @@ const App = () => {
             });
     };
 
+
     const toggleFan = () => {
-        const newState = !fanState; // Новое состояние
-        fetch('/api/toggle-module/powerVentilation', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.State_of_Ventilation !== undefined) {
-                    setFanState(data.State_of_Ventilation); // Обновляем состояние на основе ответа сервера
-                } else {
-                    console.error("Некорректный ответ от сервера:", data);
-                }
-            })
-            .catch(err => {
-                console.error("Ошибка переключения вентилятора:", err);
-                setFanState(!newState); // Откат состояния в случае ошибки
-            });
-    };
+    const newState = !fanState; // Новое состояние переключателя (переключаемся на противоположное)
+    fetch('/api/toggle-module/powerVentilation', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            // Проверяем, что пришел ответ с актуальным состоянием устройства
+            if (data.State_of_Ventilation !== undefined) {
+                const actualState = data.State_of_Ventilation === "true"; // Преобразуем строку в булево значение
+                setFanState(actualState); // Обновляем состояние фронта
+            } else {
+                console.error("Некорректный ответ от сервера:", data);
+                setFanState(newState); // Откат состояния в случае ошибки
+            }
+        })
+        .catch(err => {
+            console.error("Ошибка переключения вентилятора:", err);
+            setFanState(newState); // Откат состояния в случае ошибки
+        });
+};
+
 
     const setFanThresholdValue = () => {
         const threshold = document.getElementById('fanThresholdInput').value;
