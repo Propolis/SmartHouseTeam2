@@ -89,22 +89,26 @@ const App = () => {
             });
     };
 
+
     const toggleLED2 = () => {
-        const newState = !led2State; // Новое состояние
-        fetch('/api/toggle-module/RGBLenta_Bedroom', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.State_of_Lamp_Bathroom !== undefined) {
-                    setLed2State(data.State_of_Lamp_Bathroom); // Обновляем состояние на основе ответа сервера
-                } else {
-                    console.error("Некорректный ответ от сервера:", data);
-                }
-            })
-            .catch(err => {
-                console.error("Ошибка переключения LED2:", err);
-                setLed2State(!newState); // Откат состояния в случае ошибки
-            });
-    };
+    const newState = !led2State; // Новое состояние переключателя
+    fetch('/api/toggle-module/RGBLenta_Bedroom', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            // Проверяем, что пришел ответ с актуальным состоянием устройства
+            if (data.State_of_Lamp_Bedroom !== undefined) {
+                const actualState = data.State_of_Lamp_Bedroom === "true"; // Преобразуем строку в булево значение
+                setLed2State(actualState); // Обновляем состояние на фронте
+            } else {
+                console.error("Некорректный ответ от сервера:", data);
+                setLed2State(newState); // Откат состояния в случае ошибки
+            }
+        })
+        .catch(err => {
+            console.error("Ошибка переключения лампы:", err);
+            setLed2State(newState); // Откат состояния в случае ошибки
+        });
+};
 
 
     const toggleFan = () => {
