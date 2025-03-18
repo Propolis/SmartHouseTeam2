@@ -10,11 +10,14 @@ const App = () => {
     // Состояния для данных
     const [temperature, setTemperature] = useState(0);
     const [humidity, setHumidity] = useState(0);
+    const [bathHumidity, setBathHumidity] = useState(0);
     const [motion, setMotion] = useState("Нет движения");
     const [smoke, setSmoke] = useState("Не обнаружен");
+    const [protechka, setProtechka] = useState("Не обнаружена");
     const [fanThreshold, setFanThreshold] = useState(30);
+    const [bathFanThreshold, setBathFanThreshold] = useState(40);
     const [autoMode, setAutoMode] = useState(false);
-    const [led1State, setLed1State] = useState(false);
+    const [klimatFanState, setKlimatFanState] = useState(false);
     const [led2State, setLed2State] = useState(false);
     const [fanState, setFanState] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -28,28 +31,34 @@ const App = () => {
             console.log("Результат запроса:", data);
             setTemperature(data.temperature);
             setHumidity(data.humidity);
+            setBathHumidity(data.Humidity_bathroom);
             setMotion(data.motion);
             setSmoke(data.smoke);
             setFanThreshold(data.fanThreshold);
+            setBathFanThreshold(data.VlaznostPorog);
             setAutoMode(data.autoMode);
 
             // Обновление состояния устройств с учетом данных с сервера
-            if (data.State_of_Lamp_Bathroom !== led1State) {
-                setLed1State(data.State_of_Lamp_Bathroom === "true"); // Обновляем состояние на фронте
-            }
             if (data.State_of_Lamp_Bedroom !== led2State) {
                 setLed2State(data.State_of_Lamp_Bedroom === "true"); // Обновляем состояние на фронте
             }
             if (data.State_of_Ventilation !== fanState) {
                 setFanState(data.State_of_Ventilation === "true"); // Обновляем состояние вентилятора на фронте
             }
+            if (data.State_of_Klimat_Kontrol !== klimatFanState) {
+                setKlimatFanState(data.State_of_Klimat_Kontrol === "true"); // Обновляем состояние вентилятора на фронте
+            }
 
             // Добавление уведомлений
-            if (data.motion === "Обнаружено") {
+            if (data.motion === "1") {
                 addNotification("Движение обнаружено");
             }
-            if (data.smoke === "Обнаружен") {
+            if (data.smoke === "1") {
                 addNotification("Дым обнаружен");
+            }
+	    if (data.Protechka === "1") {
+		setProtechka("Протечка обнаружена");
+                addNotification("Протечка обнаружена");
             }
         })
         .catch(err => console.error("Ошибка получения данных:", err));
@@ -71,25 +80,6 @@ const App = () => {
         setNotifications(prev => [newNotification, ...prev].slice(0, 10)); // Ограничение до 10 уведомлений
     };
 
-    // Функции для управления устройствами
-    const toggleLED1 = () => {
-        const newState = !led1State; // Новое состояние
-        fetch('/api/toggle-module/Lamp_Bedroom', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.State_of_Lamp_Bedroom !== undefined) {
-                    setLed1State(data.State_of_Lamp_Bedroom === 1); // Обновляем состояние на основе ответа сервера
-                } else {
-                    console.error("Некорректный ответ от сервера:", data);
-                }
-            })
-            .catch(err => {
-                console.error("Ошибка переключения LED1:", err);
-                setLed1State(!newState); // Откат состояния в случае ошибки
-            });
-    };
-
-
     const toggleLED2 = () => {
     const newState = !led2State; // Новое состояние переключателя
     fetch('/api/toggle-module/RGBLenta_Bedroom', { method: 'POST' })
@@ -108,7 +98,7 @@ const App = () => {
             console.error("Ошибка переключения лампы:", err);
             setLed2State(newState); // Откат состояния в случае ошибки
         });
-};
+    };
 
 
     const toggleFan = () => {
@@ -129,8 +119,27 @@ const App = () => {
             console.error("Ошибка переключения вентилятора:", err);
             setFanState(newState); // Откат состояния в случае ошибки
         });
-};
+    };
 
+    const toggleKlimatFan = () => {
+    const newState = !klimatFanState; // Новое состояние переключателя (переключаемся на противоположное)
+    fetch('/api/toggle-module/Klimat_Kontrol', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            // Проверяем, что пришел ответ с актуальным состоянием устройства
+            if (data.State_of_Klimat_Kontrol !== undefined) {
+                const actualState = data.State_of_Klimat_Kontrol === "true"; // Преобразуем строку в булево значение
+                setKlimatFanState(actualState); // Обновляем состояние фронта
+            } else {
+                console.error("Некорректный ответ от сервера:", data);
+                setKlimatFanState(newState); // Откат состояния в случае ошибки
+            }
+        })
+        .catch(err => {
+            console.error("Ошибка переключения вентилятора:", err);
+            setKlimatFanState(newState); // Откат состояния в случае ошибки
+        });
+    };
 
     const setFanThresholdValue = () => {
         const threshold = document.getElementById('fanThresholdInput').value;
@@ -177,9 +186,7 @@ const App = () => {
             )}
             {activeTab === 'Lighting' && (
                 <Lighting
-                    led1State={led1State}
                     led2State={led2State}
-                    toggleLED1={toggleLED1}
                     toggleLED2={toggleLED2}
                 />
             )}
@@ -187,6 +194,7 @@ const App = () => {
                 <Sensors
                     motion={motion}
                     smoke={smoke}
+		    protechka={protechka}
                     notifications={notifications}
                 />
             )}

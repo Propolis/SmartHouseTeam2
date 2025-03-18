@@ -1,6 +1,6 @@
 import React from 'react';
 
-function Microclimate({ temperature, humidity, fanThreshold, autoMode, fanState, toggleFan, setFanThresholdValue, toggleAutoMode }) {
+function Microclimate({ temperature, humidity, bathHumidity, fanThreshold, autoMode, fanState, toggleFan, klimatFanState, toggleKlimatFan, setFanThresholdValue, toggleAutoMode }) {
     return (
         <div className="tabcontent">
             <h2>Микроклимат в жилых помещениях</h2>
@@ -12,7 +12,31 @@ function Microclimate({ temperature, humidity, fanThreshold, autoMode, fanState,
                 <h3>Влажность</h3>
                 <p id="humidity">{humidity} %</p>
             </div>
-            <h2>Микроклимат в ванной</h2>
+            <h2>Управление вентилятором</h2>
+            <div className="fan-tile">
+                <img src="https://cdn-icons-png.flaticon.com/512/979/979619.png" alt="Вентилятор" />
+                <h3>Вентилятор</h3>
+                <label className="switch">
+                    <input
+                        type="checkbox"
+                        id="klimatFanSwitch"
+                        checked={klimatFanState}
+                        onChange={toggleKlimatFan}
+                    />
+                    <span className="slider"></span>
+                </label>
+            </div>
+
+            <div className="flex-row">
+                <p>Порог вентилятора: <span id="fanThreshold">{fanThreshold} C</span></p>
+                <input type="number" id="fanThresholdInput" placeholder="Введите порог" />
+                <button onClick={setFanThresholdValue}>Установить</button>
+            </div>
+            <div className="flex-row">
+                <p>Режим управления: <span id="autoMode">{autoMode ? 'Автоматический' : 'Ручной'}</span></p>
+                <button onClick={toggleAutoMode}>Переключить режим</button>
+            </div>
+	    <h2>Микроклимат в ванной</h2>
             <div className="fan-tile">
                 <img src="https://cdn-icons-png.flaticon.com/512/979/979619.png" alt="Вентиляция" />
                 <h3>Вентиляция</h3>
@@ -30,11 +54,11 @@ function Microclimate({ temperature, humidity, fanThreshold, autoMode, fanState,
             </div>
             <div className="data-tile">
                 <h3>Влажность</h3>
-                <p id="humidity">{humidity} %</p>
+                <p id="bathHumidity">{bathHumidity} %</p>
             </div>
 
             <div className="flex-row">
-                <p>Порог влажности: <span id="fanThreshold">{fanThreshold} C</span></p>
+                <p>Порог влажности: <span id="fanThreshold">{fanThreshold} %</span></p>
                 <input type="number" id="fanThresholdInput" placeholder="Введите порог" />
                 <button onClick={setFanThresholdValue}>Установить</button>
             </div>

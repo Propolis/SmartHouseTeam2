@@ -1,6 +1,6 @@
 import React from 'react';
 
-function Sensors({ motion, smoke, notifications }) {
+function Sensors({ motion, smoke, protechka, notifications }) {
     return (
         <div className="tabcontent">
             <h2>Датчики</h2>
@@ -11,6 +11,10 @@ function Sensors({ motion, smoke, notifications }) {
             <div className="sensor-tile">
                 <h3>Дым</h3>
                 <p><span id="smoke">{smoke}</span></p>
+            </div>
+	    <div className="sensor-tile">
+                <h3>Протечка</h3>
+                <p><span id="protechka">{protechka}</span></p>
             </div>
             <div className="notifications">
                 <h3>Уведомления</h3>
