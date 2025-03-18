@@ -7,7 +7,7 @@ from flask_cors import CORS
 import time
 
 
-TOPICS = ["RGBLenta_Bedroom", "Water", "powerVentilation", "toggleRGB", "Protechka"]
+TOPICS = ["RGBLenta_Bedroom", "Water", "powerVentilation", "toggleRGB", "Protechka", "VentilationVlaznost", "VlaznostPorog"]
 
 # Название модуля, топики состояния и управления должны называться одинаково (на WQTT)
 # Это же название модуля записываем в список переменной "modules"
@@ -45,6 +45,8 @@ def get_data():
         "State_of_Water": mqtt_handler.sensor_states.get("Water"),
         "toggleRGB": mqtt_handler.sensor_states.get("toggleRGB"),
         "Protechka": mqtt_handler.sensor_states.get("Protechka"),
+        "Humidity_bathroom": mqtt_handler.sensor_states.get("VentilationVlaznost"),
+        "VlaznostPorog": mqtt_handler.sensor_states.get("VlaznostPorog")
     }
 
     return jsonify(data), 200
@@ -70,21 +72,33 @@ def set_light_color():
     module_name = "toggleRGB"
     data = request.get_json()
     color_from_frontend = f"{data.get('red')},{data.get('green')},{data.get('blue')}"
-    mqtt_handler.publish(module_name, color_from_frontend)
-    time.sleep(0.1)
     color_from_broker = mqtt_handler.sensor_states.get(module_name, "0")
-    if color_from_broker == color_from_frontend:
-        return jsonify({"status": "success", "color": data}), 200
-    return jsonify({"status": "error", "message": f"broker:{color_from_broker} \n frontend: {color_from_frontend}"}), 400
+    if color_from_broker != color_from_frontend:
+        mqtt_handler.publish(module_name, color_from_frontend)
+        time.sleep(0.1)
+        color_from_broker = mqtt_handler.sensor_states.get(module_name, "0")
+        if color_from_broker == color_from_frontend:
+            return jsonify({"status": "success", "color": data}), 200
+        return jsonify({"status": "error,no change", "message": f"broker:{color_from_broker} \n frontend: {color_from_frontend}"}), 400
+    return jsonify({"status": "Not Modified", "message": f"If-Modified-Since"}), 304
 
 
-
-@app.route('/setFanThreshold', methods=['GET'])
-def set_fan_threshold():
-    threshold = request.args.get('threshold', '30')
-    # Логика сохранения порога вентилятора
-    return f"Порог установлен на {threshold}"
-
+@app.route('/api/setFanThreshold/<module_topic>', methods=['POST'])
+def threshold_of_modules(module_topic):
+    if module_topic not in mqtt_handler.modules:
+        return jsonify({"status": "error", "message": f"Неизвестный модуль: {module_topic}"}), 400
+    threshold_from_frontend = int(request.get_json().get("threshold"))
+    threshold_from_broker = int(mqtt_handler.sensor_states.get(module_topic, "0"))
+    if threshold_from_broker != threshold_from_frontend:
+        new_state = threshold_from_frontend
+        mqtt_handler.publish(module_topic, new_state)
+        time.sleep(0.1)
+        threshold_from_broker = int(mqtt_handler.sensor_states.get(module_topic, "0"))
+        if threshold_from_broker == threshold_from_frontend:
+            return jsonify({"status": "success", module_topic: new_state}), 200
+        return jsonify(
+            {"status": "error, no changes", "message": f"broker:{threshold_from_broker} frontend:{threshold_from_frontend}"}), 400
+    return jsonify({"status": "Not Modified", "message": f"If-Modified-Since"}), 304
 @app.route('/toggleAutoMode', methods=['GET'])
 def toggle_auto_mode():
     # Логика переключения авто/ручного режима
