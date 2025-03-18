@@ -10,16 +10,24 @@ const App = () => {
     // Состояния для данных
     const [temperature, setTemperature] = useState(0);
     const [humidity, setHumidity] = useState(0);
-    const [bathHumidity, setBathHumidity] = useState(0);
+    const [bathHumidity, setBathHumidity] = useState(10);
+
+    const [led2State, setLed2State] = useState(false);
+
     const [motion, setMotion] = useState("Нет движения");
     const [smoke, setSmoke] = useState("Не обнаружен");
     const [protechka, setProtechka] = useState("Не обнаружена");
+
     const [fanThreshold, setFanThreshold] = useState(30);
     const [bathFanThreshold, setBathFanThreshold] = useState(40);
     const [autoMode, setAutoMode] = useState(false);
+    const [bathAutoMode, setBathAutoMode] = useState(false);
     const [klimatFanState, setKlimatFanState] = useState(false);
-    const [led2State, setLed2State] = useState(false);
     const [fanState, setFanState] = useState(false);
+
+
+    const [pompaState, setPompaState] = useState(false);
+
     const [notifications, setNotifications] = useState([]);
     const [activeTab, setActiveTab] = useState('Microclimate');
 
@@ -29,37 +37,68 @@ const App = () => {
         .then(response => response.json())
         .then(data => {
             console.log("Результат запроса:", data);
+
             setTemperature(data.temperature);
             setHumidity(data.humidity);
             setBathHumidity(data.Humidity_bathroom);
+
             setMotion(data.motion);
             setSmoke(data.smoke);
-            setFanThreshold(data.fanThreshold);
+
+            setPompaState(data.Pompa);
+
+            setFanThreshold(data.TemperaturePorog);
             setBathFanThreshold(data.VlaznostPorog);
-            setAutoMode(data.autoMode);
+            setAutoMode(data.Rezimi_Klimat_Kontrol);
+            setBathAutoMode(data.ModeVentilation);
 
             // Обновление состояния устройств с учетом данных с сервера
             if (data.State_of_Lamp_Bedroom !== led2State) {
-                setLed2State(data.State_of_Lamp_Bedroom === "true"); // Обновляем состояние на фронте
+                setLed2State(data.State_of_Lamp_Bedroom === "true"); 
             }
+
             if (data.State_of_Ventilation !== fanState) {
-                setFanState(data.State_of_Ventilation === "true"); // Обновляем состояние вентилятора на фронте
+                setFanState(data.State_of_Ventilation === "true"); 
             }
+
             if (data.State_of_Klimat_Kontrol !== klimatFanState) {
-                setKlimatFanState(data.State_of_Klimat_Kontrol === "true"); // Обновляем состояние вентилятора на фронте
+                setKlimatFanState(data.State_of_Klimat_Kontrol === "true"); 
+            }
+
+	    if (data.Pompa !== pompaState) {
+                setPompaState(data.Pompa === "true"); 
+            }
+
+            if (data.Rezimi_Klimat_Kontrol !== autoMode) {
+                setAutoMode(data.Rezimi_Klimat_Kontrol === "true"); 
+            }
+
+	    if (data.ModeVentilation !== bathAutoMode) {
+                setBathAutoMode(data.ModeVentilation === "true"); 
             }
 
             // Добавление уведомлений
             if (data.motion === "1") {
-                addNotification("Движение обнаружено");
-            }
+                setMotion("Движение обнаружено");
+		addNotification("Движение обнаружено");
+            } else {
+                setMotion("Нет движения");
+	    }
+
             if (data.smoke === "1") {
-                addNotification("Дым обнаружен");
-            }
+		setSmoke("Газ обнаружен");
+		addNotification("Газ обнаружен");
+            } else {
+		setSmoke("Не обнаружен");
+	    }
+
 	    if (data.Protechka === "1") {
 		setProtechka("Протечка обнаружена");
+		togglePompa();
                 addNotification("Протечка обнаружена");
-            }
+            } else {
+	        setProtechka("Не обнаружена");
+	    }
         })
         .catch(err => console.error("Ошибка получения данных:", err));
 };
@@ -141,29 +180,60 @@ const App = () => {
         });
     };
 
-    const setFanThresholdValue = () => {
-        const threshold = document.getElementById('fanThresholdInput').value;
-        fetch('/api/toggle-module/fanThreshold', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ threshold }),
+    const togglePompa = () => {
+    const newState = !pompaState; // Новое состояние переключателя (переключаемся на противоположное)
+    fetch('/api/toggle-module/Pompa', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            // Проверяем, что пришел ответ с актуальным состоянием устройства
+            if (data.Pompa !== undefined) {
+                const actualState = data.Pompa === "true"; // Преобразуем строку в булево значение
+                setPompaState(actualState); // Обновляем состояние фронта
+            } else {
+                console.error("Некорректный ответ от сервера:", data);
+                setPompaState(newState); // Откат состояния в случае ошибки
+            }
         })
-            .then(response => response.text())
-            .then(text => {
-                alert(text);
-                setFanThreshold(threshold);
-            })
-            .catch(err => console.error("Ошибка установки порога вентилятора:", err));
+        .catch(err => {
+            console.error("Ошибка переключения вентилятора:", err);
+            setPompaState(newState); // Откат состояния в случае ошибки
+        });
+    };
+
+    const setFanThresholdValue = () => {
+    const threshold = document.getElementById('fanThresholdInput').value;
+    fetch('/api/setFanThreshold/TemperaturePorog', { method: 'POST', headers: { 'Content-Type': 'application/json'}, body: JSON.stringify({ threshold })})
+	.then(response => response.text())
+	.then(text => {
+	    setFanThreshold(threshold);
+	})
+	.catch(err => console.error("Ошибка установки порога вентилятора:", err));
+    };
+
+    const setBathFanThresholdValue = () => {
+    const threshold = document.getElementById('bathFanThresholdInput').value;
+    fetch('/api/setFanThreshold/VlaznostPorog', { method: 'POST', headers: { 'Content-Type': 'application/json'}, body: JSON.stringify({ threshold })})
+	.then(response => response.text())
+	.then(text => {
+	    setBathFanThreshold(threshold);
+	})
+	.catch(err => console.error("Ошибка установки порога вентилятора:", err));
     };
 
     const toggleAutoMode = () => {
-        fetch('/api/toggle-module/autoMode', { method: 'POST' })
+        fetch('/api/toggle-module/Rezimi_Klimat_Kontrol', { method: 'POST' })
             .then(response => response.text())
             .then(text => {
-                alert(text);
                 setAutoMode(prev => !prev);
+            })
+            .catch(err => console.error("Ошибка переключения режима:", err));
+    };
+
+    const toggleBathAutoMode = () => {
+        fetch('/api/toggle-module/ModeVentilation', { method: 'POST' })
+            .then(response => response.text())
+            .then(text => {
+                setBathAutoMode(prev => !prev);
             })
             .catch(err => console.error("Ошибка переключения режима:", err));
     };
@@ -176,14 +246,19 @@ const App = () => {
                 <Microclimate
                     temperature={temperature}
                     humidity={humidity}
+                    bathHumidity={bathHumidity}
                     fanThreshold={fanThreshold}
+                    bathFanThreshold={bathFanThreshold}
                     autoMode={autoMode}
+                    bathAutoMode={bathAutoMode}
                     fanState={fanState}
                     toggleFan={toggleFan}
                     klimatFanState={klimatFanState}
                     toggleKlimatFan={toggleKlimatFan}
                     setFanThresholdValue={setFanThresholdValue}
+                    setBathFanThresholdValue={setBathFanThresholdValue}
                     toggleAutoMode={toggleAutoMode}
+                    toggleBathAutoMode={toggleBathAutoMode}
                 />
             )}
             {activeTab === 'Lighting' && (
@@ -197,6 +272,8 @@ const App = () => {
                     motion={motion}
                     smoke={smoke}
 		    protechka={protechka}
+		    pompaState={pompaState}
+		    togglePompa={togglePompa}
                     notifications={notifications}
                 />
             )}

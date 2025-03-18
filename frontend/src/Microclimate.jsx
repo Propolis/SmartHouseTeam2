@@ -1,21 +1,21 @@
 import React from 'react';
 
-function Microclimate({ temperature, humidity, bathHumidity, fanThreshold, autoMode, fanState, toggleFan, klimatFanState, toggleKlimatFan, setFanThresholdValue, toggleAutoMode }) {
+function Microclimate({ temperature, humidity, bathHumidity, fanThreshold, bathFanThreshold, autoMode, bathAutoMode, fanState, toggleFan, klimatFanState, toggleKlimatFan, setFanThresholdValue, setBathFanThresholdValue, toggleAutoMode, toggleBathAutoMode }) {
     return (
         <div className="tabcontent">
             <h2>Микроклимат в жилых помещениях</h2>
             <div className="data-tile">
                 <h3>Температура</h3>
-                <p id="temperature">{temperature} C</p>
+                <p id="temperature">{temperature}°C</p>
             </div>
             <div className="data-tile">
                 <h3>Влажность</h3>
                 <p id="humidity">{humidity} %</p>
             </div>
-            <h2>Управление вентилятором</h2>
+            <h2>Управление кондиционером</h2>
             <div className="fan-tile">
-                <img src="https://cdn-icons-png.flaticon.com/512/979/979619.png" alt="Вентилятор" />
-                <h3>Вентилятор</h3>
+                <img src="https://cdn-icons-png.flaticon.com/512/8866/8866925.png" alt="Кондиционер" />
+                <h3>Кондиционер</h3>
                 <label className="switch">
                     <input
                         type="checkbox"
@@ -28,7 +28,7 @@ function Microclimate({ temperature, humidity, bathHumidity, fanThreshold, autoM
             </div>
 
             <div className="flex-row">
-                <p>Порог вентилятора: <span id="fanThreshold">{fanThreshold} C</span></p>
+                <p>Порог температуры: <span id="fanThreshold">{fanThreshold}°C</span></p>
                 <input type="number" id="fanThresholdInput" placeholder="Введите порог" />
                 <button onClick={setFanThresholdValue}>Установить</button>
             </div>
@@ -48,23 +48,20 @@ function Microclimate({ temperature, humidity, bathHumidity, fanThreshold, autoM
                         onChange={toggleFan}
                     />
                     <span className="slider"></span>
-
                 </label>
-
             </div>
             <div className="data-tile">
-                <h3>Влажность</h3>
-                <p id="bathHumidity">{bathHumidity} %</p>
-            </div>
-
-            <div className="flex-row">
-                <p>Порог влажности: <span id="fanThreshold">{fanThreshold} %</span></p>
-                <input type="number" id="fanThresholdInput" placeholder="Введите порог" />
-                <button onClick={setFanThresholdValue}>Установить</button>
+		<h3>Влажность</h3>
+                <p id="bathHumidity">{bathHumidity}%</p>
             </div>
             <div className="flex-row">
-                <p>Режим управления: <span id="autoMode">{autoMode ? 'Автоматический' : 'Ручной'}</span></p>
-                <button onClick={toggleAutoMode}>Переключить режим</button>
+                <p>Порог влажности: <span id="bathFanThreshold">{bathFanThreshold}%</span></p>
+                <input type="number" id="bathFanThresholdInput" placeholder="Введите порог" />
+                <button onClick={setBathFanThresholdValue}>Установить</button>
+            </div>
+            <div className="flex-row">
+                <p>Режим управления: <span id="bathAutoMode">{bathAutoMode ? 'Автоматический' : 'Ручной'}</span></p>
+                <button onClick={toggleBathAutoMode}>Переключить режим</button>
             </div>
         </div>
     );

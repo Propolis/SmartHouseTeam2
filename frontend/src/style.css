@@ -202,7 +202,7 @@ input:checked + .slider:before {
 .data-tile {
     display: inline-block;
     width: 200px;
-    padding: 20px;
+    padding: 17px;
     margin: 10px;
     text-align: center;
     background-color: #fff;
