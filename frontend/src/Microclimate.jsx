@@ -1,6 +1,34 @@
 import React from 'react';
 
-function Microclimate({ temperature, humidity, bathHumidity, fanThreshold, bathFanThreshold, autoMode, bathAutoMode, fanState, toggleFan, klimatFanState, toggleKlimatFan, setFanThresholdValue, setBathFanThresholdValue, toggleAutoMode, toggleBathAutoMode }) {
+function Microclimate({
+    temperature,
+    humidity,
+    bathHumidity,
+    fanThreshold,
+    bathFanThreshold,
+    autoMode,
+    bathAutoMode,
+    fanState,
+    toggleFan,
+    klimatFanState,
+    toggleKlimatFan,
+    setFanThresholdValue,
+    setBathFanThresholdValue,
+    toggleAutoMode,
+    toggleBathAutoMode
+}) {
+    // Функция для обработки установки порога температуры
+    const handleSetFanThreshold = () => {
+        setFanThresholdValue(); // Устанавливаем порог
+        document.getElementById('fanThresholdInput').value = ''; // Очищаем поле ввода
+    };
+
+    // Функция для обработки установки порога влажности
+    const handleSetBathFanThreshold = () => {
+        setBathFanThresholdValue(); // Устанавливаем порог
+        document.getElementById('bathFanThresholdInput').value = ''; // Очищаем поле ввода
+    };
+
     return (
         <div className="tabcontent">
             <h2>Микроклимат в жилых помещениях</h2>
@@ -31,7 +59,7 @@ function Microclimate({ temperature, humidity, bathHumidity, fanThreshold, bathF
                 <div className="flex-row">
                     <p>Порог температуры: <span id="fanThreshold">{fanThreshold}°C</span></p>
                     <input type="number" id="fanThresholdInput" placeholder="Введите порог" />
-                    <button onClick={setFanThresholdValue}>Установить</button>
+                    <button onClick={handleSetFanThreshold}>Установить</button>
                 </div>
             )}
             <div className="flex-row">
@@ -60,7 +88,7 @@ function Microclimate({ temperature, humidity, bathHumidity, fanThreshold, bathF
                 <div className="flex-row">
                     <p>Порог влажности: <span id="bathFanThreshold">{bathFanThreshold}%</span></p>
                     <input type="number" id="bathFanThresholdInput" placeholder="Введите порог" />
-                    <button onClick={setBathFanThresholdValue}>Установить</button>
+                    <button onClick={handleSetBathFanThreshold}>Установить</button>
                 </div>
             )}
             <div className="flex-row">
