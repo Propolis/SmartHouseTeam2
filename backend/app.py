@@ -37,12 +37,10 @@ HEADERS = {
 def get_data():
 
     data = {
-        "temperature": 19,
-        "humidity": 64,
-        "motion": "Нет движения",
-        "smoke": "Не обнаружен",
-        "fanThreshold": 20,
-        "autoMode": 1,
+        "temperature": mqtt_handler.sensor_states.get("Klimat_Temperature"),
+        "humidity": mqtt_handler.sensor_states.get("KlimatHumidity"),
+        "motion": mqtt_handler.sensor_states.get("Moving"),
+        "smoke": mqtt_handler.sensor_states.get("Gas"),
         "State_of_Lamp_Bedroom": mqtt_handler.sensor_states.get("RGBLenta_Bedroom"),
         "State_of_Ventilation": mqtt_handler.sensor_states.get("powerVentilation"),
         "State_of_Klimat_Kontrol": mqtt_handler.sensor_states.get("Klimat_Kontrol"),
@@ -106,6 +104,7 @@ def threshold_of_modules(module_topic):
         return jsonify(
             {"status": "error, no changes", "message": f"broker:{threshold_from_broker} frontend:{threshold_from_frontend}"}), 400
     return jsonify({"status": "Not Modified", "message": f"If-Modified-Since"}), 304
+
 @app.route('/toggleAutoMode', methods=['GET'])
 def toggle_auto_mode():
     # Логика переключения авто/ручного режима
