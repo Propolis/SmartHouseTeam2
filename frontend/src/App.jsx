@@ -94,7 +94,6 @@ const App = () => {
 
 	    if (data.Protechka === "1") {
 		setProtechka("Протечка обнаружена");
-		togglePompa();
                 addNotification("Протечка обнаружена");
             } else {
 	        setProtechka("Не обнаружена");
