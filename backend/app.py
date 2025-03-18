@@ -7,7 +7,7 @@ from flask_cors import CORS
 import time
 
 
-TOPICS = ["RGBLenta_Bedroom", "Water", "powerVentilation", "toggleRGB", "Protechka", "VentilationVlaznost", "VlaznostPorog"]
+TOPICS = ["RGBLenta_Bedroom", "Klimat_Kontrol", "powerVentilation", "toggleRGB", "Protechka", "VentilationVlaznost", "VlaznostPorog"]
 
 # Название модуля, топики состояния и управления должны называться одинаково (на WQTT)
 # Это же название модуля записываем в список переменной "modules"
@@ -40,9 +40,8 @@ def get_data():
         "fanThreshold": 20,
         "autoMode": 1,
         "State_of_Lamp_Bedroom": mqtt_handler.sensor_states.get("RGBLenta_Bedroom"),
-        "State_of_Lamp_Bathroom": mqtt_handler.sensor_states.get("Lamp_Bathroom"),
         "State_of_Ventilation": mqtt_handler.sensor_states.get("powerVentilation"),
-        "State_of_Water": mqtt_handler.sensor_states.get("Water"),
+        "State_of_Klimat_Kontrol": mqtt_handler.sensor_states.get("Klimat_Kontrol"),
         "toggleRGB": mqtt_handler.sensor_states.get("toggleRGB"),
         "Protechka": mqtt_handler.sensor_states.get("Protechka"),
         "Humidity_bathroom": mqtt_handler.sensor_states.get("VentilationVlaznost"),
