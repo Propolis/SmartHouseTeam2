@@ -1,6 +1,11 @@
 import React from 'react';
 
-function Lighting({ led2State, toggleLED2 }) {
+function Lighting({
+    led2State,
+    toggleLED2,
+    lampColor, 
+    toggleLampColor 
+}) {
     return (
         <div className="tabcontent">
             <h2>Управление освещением</h2>
@@ -17,6 +22,12 @@ function Lighting({ led2State, toggleLED2 }) {
                     />
                     <span className="slider"></span>
                 </label>
+                <input
+                    type="color"
+                    value={lampColor}
+                    onChange={(e) => toggleLampColor(e.target.value)}
+                    style={{ marginLeft: '15px', width: '30px', height: '17px' }}
+                />
             </div>
         </div>
     );

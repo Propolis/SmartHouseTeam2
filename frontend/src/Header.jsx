@@ -25,7 +25,7 @@ function Header() {
         <div className="header">
             <h1>
                 <img src="https://cdn-icons-png.flaticon.com/512/619/619032.png" alt="Эмблема" />
-                Умный дом
+                Smart House PDD
             </h1>
             <div className="info" id="dateTime">
                 <div>Ростов-на-Дону</div>

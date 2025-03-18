@@ -25,6 +25,7 @@ const App = () => {
     const [klimatFanState, setKlimatFanState] = useState(false);
     const [fanState, setFanState] = useState(false);
 
+    const [lampColor, setLampColor] = useState('#FFFFFF');
 
     const [pompaState, setPompaState] = useState(false);
 
@@ -51,6 +52,8 @@ const App = () => {
             setBathFanThreshold(data.VlaznostPorog);
             setAutoMode(data.Rezimi_Klimat_Kontrol);
             setBathAutoMode(data.ModeVentilation);
+
+	    setLampColor(data.toggleRGB);
 
             // Обновление состояния устройств с учетом данных с сервера
             if (data.State_of_Lamp_Bedroom !== led2State) {
@@ -237,6 +240,19 @@ const App = () => {
             .catch(err => console.error("Ошибка переключения режима:", err));
     };
 
+    const toggleLampColor = (color) => {
+    fetch('/api/set-light-color', { method: 'POST', headers: { 'Content-Type': 'application/json'}, body: JSON.stringify({ color })})
+    	.then(response => response.json())
+    	.then(data => {
+	    if (data.status === "success") {
+            	setLampColor(color); // Обновляем состояние цвета на фронте
+            } else {
+            console.error("Ошибка установки цвета:", data.message);
+            }
+        })
+        .catch(err => console.error("Ошибка сети:", err));
+    };
+
     return (
         <div>
             <Header />
@@ -264,6 +280,8 @@ const App = () => {
                 <Lighting
                     led2State={led2State}
                     toggleLED2={toggleLED2}
+    		    lampColor={lampColor}
+    		    toggleLampColor={toggleLampColor}
                 />
             )}
             {activeTab === 'Sensors' && (
