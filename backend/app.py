@@ -76,17 +76,23 @@ def toggle_module(module_name):
 def set_light_color():
     module_name = "toggleRGB"
     data = request.get_json()
-    color_from_frontend = f"{data.get('red')},{data.get('green')},{data.get('blue')}"
+    color_from_frontend = data.get('color')  # Получаем цвет в формате HEX
+
+    # Преобразуем HEX в RGB (если нужно)
+    if color_from_frontend.startswith('#'):
+        color_from_frontend = color_from_frontend.lstrip('#')
+        rgb = tuple(int(color_from_frontend[i:i+2], 16) for i in (0, 2, 4))
+        color_from_frontend = f"{rgb[0]},{rgb[1]},{rgb[2]}"
+
     color_from_broker = mqtt_handler.sensor_states.get(module_name, "0")
     if color_from_broker != color_from_frontend:
         mqtt_handler.publish(module_name, color_from_frontend)
         time.sleep(0.1)
         color_from_broker = mqtt_handler.sensor_states.get(module_name, "0")
         if color_from_broker == color_from_frontend:
-            return jsonify({"status": "success", "color": data}), 200
-        return jsonify({"status": "error,no change", "message": f"broker:{color_from_broker} \n frontend: {color_from_frontend}"}), 400
-    return jsonify({"status": "Not Modified", "message": f"If-Modified-Since"}), 304
-
+            return jsonify({"status": "success", "color": color_from_frontend}), 200
+        return jsonify({"status": "error, no change", "message": f"broker: {color_from_broker}, frontend: {color_from_frontend}"}), 400
+    return jsonify({"status": "Not Modified", "message": "If-Modified-Since"}), 304
 
 @app.route('/api/setFanThreshold/<module_topic>', methods=['POST'])
 def threshold_of_modules(module_topic):
