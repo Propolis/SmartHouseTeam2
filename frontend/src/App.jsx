@@ -180,6 +180,8 @@ const App = () => {
                     autoMode={autoMode}
                     fanState={fanState}
                     toggleFan={toggleFan}
+                    klimatFanState={klimatFanState}
+                    toggleKlimatFan={toggleKlimatFan}
                     setFanThresholdValue={setFanThresholdValue}
                     toggleAutoMode={toggleAutoMode}
                 />
