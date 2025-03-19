@@ -1,0 +1,154 @@
+/*********************************************************
+ *  Подключаем необходимые библиотеки
+ *********************************************************/
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+/*********************************************************
+ *  Сетевые настройки (Wi-Fi, MQTT)
+ *********************************************************/
+const char* ssid     = "Tochka";
+const char* password = "password";
+
+const char* mqttServer = "m1.wqtt.ru";
+const int   mqttPort   = 13010;
+const char* mqttUser   = "u_TNQXY5";
+const char* mqttPass   = "6En7SeKP";
+
+/*********************************************************
+ *  Пины для RGB ленты
+ *********************************************************/
+#define RED_PIN   15
+#define GREEN_PIN  2
+#define BLUE_PIN   5
+
+/*********************************************************
+ *  MQTT топики 
+ *********************************************************/
+#define TOPIC_LIGHT_ONOFF "LightOnOff"   // "1"=вкл, "0"=выкл
+#define TOPIC_LIGHT_COLOR "LightColor"   // "R,G,B"
+
+/*********************************************************
+ *  Переменные состояний
+ *********************************************************/
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+bool lightOn = false;        // Текущее состояние ленты (вкл/выкл)
+int rgb_r = 255, rgb_g = 255, rgb_b = 255;  // Цвет по умолчанию (белый)
+
+/*********************************************************
+ *  Подключение к Wi-Fi
+ *********************************************************/
+void setupWifi() {
+  Serial.print("Подключаемся к WiFi: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi подключен. IP: " + WiFi.localIP().toString());
+}
+
+/*********************************************************
+ *  Переподключение к MQTT
+ *********************************************************/
+void mqttReconnect() {
+  while (!client.connected()) {
+    Serial.print("Подключение к MQTT... ");
+    if (client.connect("ESP32_RGB", mqttUser, mqttPass)) {
+      Serial.println("OK");
+      // Подписываемся на топики
+      client.subscribe(TOPIC_LIGHT_ONOFF);
+      client.subscribe(TOPIC_LIGHT_COLOR);
+    } else {
+      Serial.print("Ошибка подключения, rc=");
+      Serial.println(client.state());
+      delay(5000);
+    }
+  }
+}
+
+/*********************************************************
+ *  Обработка входящих MQTT-сообщений
+ *********************************************************/
+void callback(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  for (int i = 0; i < length; i++) {
+    msg += (char)payload[i];
+  }
+  Serial.println(String("[MQTT] ") + topic + " => " + msg);
+
+  if (String(topic) == TOPIC_LIGHT_ONOFF) {
+    // "1" = включить, "0" = выключить
+    lightOn = (msg == "1");
+    if (!lightOn) {
+      // Выключаем ленту
+      ledcWrite(0, 0);
+      ledcWrite(1, 0);
+      ledcWrite(2, 0);
+      Serial.println("RGB выключена");
+    } else {
+      // Включаем ленту текущим цветом
+      ledcWrite(0, rgb_r);
+      ledcWrite(1, rgb_g);
+      ledcWrite(2, rgb_b);
+      Serial.println("RGB включена");
+    }
+  }
+  else if (String(topic) == TOPIC_LIGHT_COLOR) {
+    // Ожидаем строку "R,G,B"
+    int c1 = msg.indexOf(',');
+    int c2 = msg.indexOf(',', c1+1);
+    if (c1>0 && c2>0) {
+      rgb_r = msg.substring(0, c1).toInt();
+      rgb_g = msg.substring(c1+1, c2).toInt();
+      rgb_b = msg.substring(c2+1).toInt();
+      Serial.printf("Новый цвет: R=%d, G=%d, B=%d\n", rgb_r, rgb_g, rgb_b);
+      if (lightOn) {
+        // Если лента включена, сразу меняем цвет
+        ledcWrite(0, rgb_r);
+        ledcWrite(1, rgb_g);
+        ledcWrite(2, rgb_b);
+      }
+    }
+  }
+}
+
+/*********************************************************
+ *  Setup
+ *********************************************************/
+void setup() {
+  Serial.begin(115200);
+
+  // Настраиваем каналы ШИМ для RGB
+  ledcSetup(0, 5000, 8);  // Канал 0, частота 5 кГц, 8 бит
+  ledcSetup(1, 5000, 8);
+  ledcSetup(2, 5000, 8);
+
+  // Привязываем пины к каналам
+  ledcAttachPin(RED_PIN,   0);
+  ledcAttachPin(GREEN_PIN, 1);
+  ledcAttachPin(BLUE_PIN,  2);
+
+  // Сразу выключаем ленту
+  ledcWrite(0, 0);
+  ledcWrite(1, 0);
+  ledcWrite(2, 0);
+
+  setupWifi();
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback);
+}
+
+/*********************************************************
+ *  Основной цикл
+ *********************************************************/
+void loop() {
+  if (!client.connected()) {
+    mqttReconnect();
+  }
+  client.loop();
+  // Ничего более делать не нужно, вся логика в callback()
+}
