@@ -17,8 +17,7 @@ function Sensors({ motion, smoke, protechka, pompaState, togglePompa, notificati
                 <p><span id="protechka">{protechka}</span></p>
             </div>
 	    <div className="sensor-tile">
-                <h3>Помпа</h3>
-                <p><span id="pompa">Подача воды</span></p>
+                <h3>Подача воды</h3>
 		<label className="switch">
                     <input
                         type="checkbox"

@@ -46,6 +46,11 @@ const App = () => {
     const [notifications, setNotifications] = useState([]);
     const [activeTab, setActiveTab] = useState('Microclimate');
 
+    // Время последнего уведомления для каждого типа датчика
+    const [lastMotionNotification, setLastMotionNotification] = useState(null);
+    const [lastSmokeNotification, setLastSmokeNotification] = useState(null);
+    const [lastProtechkaNotification, setLastProtechkaNotification] = useState(null);
+
     // Функция для получения данных с сервера
     const fetchData = () => {
         fetch('/data') // GET-запрос для получения данных
@@ -98,24 +103,30 @@ const App = () => {
                     setBathAutoMode(data.ModeVentilation === "true");
                 }
 
-                // Добавление уведомлений
-                if (data.motion === "1") {
+                // Добавление уведомлений с задержкой в 3 минуты
+                const now = Date.now();
+                const threeMinutes = 3 * 60 * 1000; // 3 минуты в миллисекундах
+
+                if (data.motion === "1" && (!lastMotionNotification || now - lastMotionNotification >= threeMinutes)) {
                     setMotion("Движение обнаружено");
                     addNotification("Движение обнаружено");
+                    setLastMotionNotification(now);
                 } else {
                     setMotion("Нет движения");
                 }
 
-                if (data.smoke === "1") {
+                if (data.smoke === "1" && (!lastSmokeNotification || now - lastSmokeNotification >= threeMinutes)) {
                     setSmoke("Газ обнаружен");
                     addNotification("Газ обнаружен");
+                    setLastSmokeNotification(now);
                 } else {
                     setSmoke("Не обнаружен");
                 }
 
-                if (data.Protechka === "1") {
+                if (data.Protechka === "1" && (!lastProtechkaNotification || now - lastProtechkaNotification >= threeMinutes)) {
                     setProtechka("Протечка обнаружена");
                     addNotification("Протечка обнаружена");
+                    setLastProtechkaNotification(now);
                 } else {
                     setProtechka("Не обнаружена");
                 }
