@@ -1,0 +1,246 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+/************************************************
+ *  Wi-Fi настройки
+ ************************************************/
+const char* ssid     = "Tochka";
+const char* password = "password";
+
+/************************************************
+ *  MQTT настройки (WQTT)
+ ************************************************/
+const char* mqttServer = "m1.wqtt.ru";
+const int   mqttPort   = 13010;
+const char* mqttUser   = "u_TNQXY5";
+const char* mqttPass   = "6En7SeKP";
+
+/************************************************
+ *  Пины
+ ************************************************/
+// ----- Газ/дым (MQ-2) на ADC (GPIO34) -----
+#define GAS_SENSOR_PIN 34
+// Зуммер
+#define BUZZER_PIN     33
+
+// ----- Протечка (ADC), GPIO32 -----
+#define RAIN_SENSOR_PIN 32
+
+// ----- Помпа (активный низ) -----
+#define PUMP_PIN 15
+
+// ----- Датчик движения (цифровой, GPIO4), LED на GPIO5 -----
+#define MOTION_SENSOR_PIN 4
+#define MOTION_LED_PIN    5
+
+/************************************************
+ *  Топики MQTT
+ ************************************************/
+// Публикуем "0"/"1" при обнаружении газа
+#define TOPIC_GAS "Gas"
+
+// Публикуем "0"/"1" при протечке
+#define TOPIC_LEAK "Protechka"
+
+// Публикуем "0"/"1" при движении
+#define TOPIC_MOVING "Moving"
+
+// Подписываемся на управление помпой
+// "true" => авто (если нет утечки, включена)
+// "false" => принудительно выкл
+#define TOPIC_PUMP_POWER "Pompa"
+
+/************************************************
+ *  Глобальные переменные
+ ************************************************/
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// Газ
+int  gasThreshold = 800;
+bool gasDetected  = false;
+
+// Протечка
+bool leakDetected = false;
+
+// Помпа
+bool pumpForcedOff = false;  // true => пользователь отправил "false" => выкл
+
+// Движение
+bool motionDetected = false;
+
+/************************************************
+ *  Подключение к Wi-Fi
+ ************************************************/
+void setupWifi() {
+  Serial.print("Подключаемся к Wi-Fi: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi подключён");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+/************************************************
+ *  Переподключение к MQTT
+ ************************************************/
+void mqttReconnect() {
+  while (!client.connected()) {
+    Serial.print("Подключение к MQTT... ");
+    if (client.connect("ESP32_AllInOne", mqttUser, mqttPass)) {
+      Serial.println("OK");
+      // Подписка на команду помпы
+      client.subscribe(TOPIC_PUMP_POWER);
+    } else {
+      Serial.print("Ошибка подключения, rc=");
+      Serial.println(client.state());
+      delay(3000);
+    }
+  }
+}
+
+/************************************************
+ *  Публикация статусов 
+ ************************************************/
+void publishGasStatus(bool state) {
+  client.publish(TOPIC_GAS, state ? "1":"0");
+}
+void publishLeakStatus(bool state) {
+  client.publish(TOPIC_LEAK, state ? "1":"0");
+}
+void publishMotionStatus(bool state) {
+  client.publish(TOPIC_MOVING, state ? "1":"0");
+}
+
+/************************************************
+ *  Помпа (активный низ)
+ ************************************************/
+void pumpOn() {
+  digitalWrite(PUMP_PIN, LOW);
+}
+void pumpOff() {
+  digitalWrite(PUMP_PIN, HIGH);
+}
+
+/************************************************
+ *  callback: входящие MQTT
+ ************************************************/
+void callback(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  for(int i=0; i<length; i++){
+    msg += (char)payload[i];
+  }
+  Serial.println(String("[MQTT] ") + topic + " => " + msg);
+
+  // Управление помпой
+  if (String(topic) == TOPIC_PUMP_POWER) {
+    // "true" => auto, "false" => forcedOff
+    if (msg == "false") {
+      pumpForcedOff = true;
+      Serial.println("Помпа принудительно выключена (false).");
+      pumpOff();
+    } else {
+      pumpForcedOff = false;
+      Serial.println("Помпа: режим авто (true).");
+    }
+  }
+}
+
+/************************************************
+ *  Setup
+ ************************************************/
+void setup() {
+  Serial.begin(115200);
+
+  // Пины
+  pinMode(GAS_SENSOR_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  noTone(BUZZER_PIN);
+
+  pinMode(RAIN_SENSOR_PIN, INPUT);
+
+  pinMode(PUMP_PIN, OUTPUT);
+  pumpOff(); // изначально
+
+  pinMode(MOTION_SENSOR_PIN, INPUT);
+  pinMode(MOTION_LED_PIN, OUTPUT);
+  digitalWrite(MOTION_LED_PIN, LOW);
+
+  // Wi-Fi + MQTT
+  setupWifi();
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback);
+}
+
+/************************************************
+ *  Основной цикл
+ ************************************************/
+void loop() {
+  if (!client.connected()) {
+    mqttReconnect();
+  }
+  client.loop();
+
+  static unsigned long prevMillis = 0;
+  if (millis() - prevMillis >= 1000) {
+    prevMillis = millis();
+
+    // 1) Газ
+    int gasValue = analogRead(GAS_SENSOR_PIN);
+    bool newGas = (gasValue > gasThreshold);
+    if (newGas != gasDetected) {
+      gasDetected = newGas;
+      publishGasStatus(gasDetected);
+      Serial.println(gasDetected ? "Газ обнаружен => 1" : "Газ норма => 0");
+    }
+    // Зуммер
+    if (gasDetected) {
+      tone(BUZZER_PIN, 1000);
+    } else {
+      noTone(BUZZER_PIN);
+    }
+
+    // 2) Протечка
+    int rainValue = analogRead(RAIN_SENSOR_PIN);
+    bool newLeak = (rainValue < 3000);
+    if (newLeak != leakDetected) {
+      leakDetected = newLeak;
+      publishLeakStatus(leakDetected);
+      Serial.println(leakDetected ? "Протечка => 1" : "Нет протечки => 0");
+    }
+
+    // 3) Движение
+    bool newMotion = (digitalRead(MOTION_SENSOR_PIN) == HIGH);
+    if (newMotion != motionDetected) {
+      motionDetected = newMotion;
+      publishMotionStatus(motionDetected);
+      Serial.println(motionDetected ? "Движение => 1" : "Нет движения => 0");
+    }
+    digitalWrite(MOTION_LED_PIN, motionDetected ? HIGH : LOW);
+
+    // 4) Помпа логика
+    //  - if pumpForcedOff => off
+    //  - else if leakDetected => off
+    //  - else on
+    if (pumpForcedOff) {
+      pumpOff();
+    } else {
+      if (leakDetected) {
+        pumpOff();
+      } else {
+        pumpOn();
+      }
+    }
+
+    // Debug
+    Serial.print("GasVal=");
+    Serial.print(gasValue);
+    Serial.print("  RainVal=");
+    Serial.println(rainValue);
+  }
+}
