@@ -1,0 +1,28 @@
+#include <FastLED.h>
+
+// Параметры подключения
+#define LED_PIN    27   // Пин, к которому подключена адресная лента (DO)
+#define NUM_LEDS   60   // Количество светодиодов в ленте
+
+// Массив для управления светодиодами
+CRGB leds[NUM_LEDS];
+
+void setup() {
+  // Инициализация адресной RGB-ленты
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
+}
+
+void loop() {
+  // Устанавливаем разные цвета на всей ленте
+  fill_solid(leds, NUM_LEDS, CRGB::Red);   // Красный
+  FastLED.show();
+  delay(1000); // Задержка 1 секунда
+
+  fill_solid(leds, NUM_LEDS, CRGB::Green); // Зеленый
+  FastLED.show();
+  delay(1000);
+
+  fill_solid(leds, NUM_LEDS, CRGB::Blue);  // Синий
+  FastLED.show();
+  delay(1000);
+}
