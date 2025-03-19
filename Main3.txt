@@ -1,0 +1,512 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_TSL2561_U.h>
+#include <DHT.h>
+
+/************************************************
+ *  Wi-Fi настройки
+ ************************************************/
+const char* ssid     = "Vardges";
+const char* password = "12345678";
+
+/************************************************
+ *  MQTT настройки (WQTT)
+ ************************************************/
+const char* mqttServer = "m1.wqtt.ru";
+const int   mqttPort   = 13010;
+const char* mqttUser   = "u_TNQXY5";
+const char* mqttPass   = "6En7SeKP";
+
+/************************************************
+ *  Пины
+ ************************************************/
+// ----- Газ/дым (MQ-2) на ADC (GPIO34) -----
+#define GAS_SENSOR_PIN 34
+// Зуммер
+#define BUZZER_PIN     33
+
+// ----- Протечка (ADC), GPIO32 -----
+#define RAIN_SENSOR_PIN 32
+
+// ----- Помпа (активный низ) -----
+#define PUMP_PIN 15
+
+// ----- Датчик движения (цифровой, GPIO4), LED на GPIO5 -----
+#define MOTION_SENSOR_PIN 4
+#define MOTION_LED_PIN    5
+
+// ----- Датчик освещённости TSL2561 -----
+Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
+// Отдельный светодиод для темноты
+#define LIGHT_LED_PIN 2
+#define LIGHT_THRESHOLD 10.0 // Порог освещённости (люкс)
+
+// ----- DHT11 -----
+#define DHTPIN 18     // Пин, к которому подключен DHT11
+#define DHTTYPE DHT11
+
+// ----- Вентиляторы -----
+#define FAN1_PIN 25
+#define FAN2_PIN 26
+
+// ----- Светодиодная лента (RGB) -----
+#define RED_PIN   19
+#define GREEN_PIN 21
+#define BLUE_PIN  22
+
+/************************************************
+ *  Топики MQTT
+ ************************************************/
+
+#define TOPIC_GAS "Gas"
+
+#define TOPIC_LEAK "Protechka"
+
+#define TOPIC_MOVING "Moving"
+
+#define TOPIC_PUMP_POWER "Pompa"
+
+#define TOPIC_TEMPERATURE "Klimat_Temperature"
+#define TOPIC_HUMIDITY "KlimatHumidity"
+#define TOPIC_HUMIDITY2 "VentilationVlaznost"
+
+#define TOPIC_FAN1 "Klimat_Kontrol"
+#define TOPIC_FAN2 "powerVentilation"
+
+#define TOPIC_LED_POWER "RGBLenta_Bedroom"
+#define TOPIC_LED_COLOR "toggleRGB"
+
+#define TOPIC_TARGET_HUMIDITY "VlaznostPorog"  
+#define TOPIC_TARGET_TEMP "TemperaturePorog"
+
+#define TOPIC_FAN1_MODE "Rezimi_Klimat_Kontrol"
+#define TOPIC_FAN2_MODE "ModeVentilation"
+
+/************************************************
+ *  Глобальные переменные
+ ************************************************/
+WiFiClient espClient;
+PubSubClient client(espClient);
+DHT dht(DHTPIN, DHTTYPE);
+
+int  gasThreshold = 800;
+bool gasDetected  = false;
+
+bool leakDetected = false;
+
+bool pumpForcedOff = false; 
+
+bool motionDetected = false;
+
+bool tslReady = false;  // Проверим, инициализировался ли TSL
+
+bool fan1State = false;
+bool fan2State = false;
+bool fan1AutoMode = false;
+bool fan2AutoMode = false; 
+
+float targetTemperature = 25.0; // Целевая температура, по умолчанию 25°C
+float targetHumidity = 50.0;  // Целевая влажность, по умолчанию 50%
+
+bool ledPowerState = false;
+uint8_t redValue = 0;
+uint8_t greenValue = 0;
+uint8_t blueValue = 0;
+
+/************************************************
+ *  Подключение к Wi-Fi
+ ************************************************/
+void setupWifi() {
+  Serial.print("Подключаемся к Wi-Fi: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi подключён");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+/************************************************
+ *  Переподключение к MQTT
+ ************************************************/
+void mqttReconnect() {
+  while (!client.connected()) {
+    Serial.print("Подключение к MQTT... ");
+    if (client.connect("ESP32AllInOne", mqttUser, mqttPass)) {
+      Serial.println("OK");
+      // Подписываемся на управление помпой, влажностью, вентиляторами и светодиодной лентой
+      client.subscribe(TOPIC_PUMP_POWER);
+      client.subscribe(TOPIC_TARGET_HUMIDITY);
+      client.subscribe(TOPIC_FAN1);
+      client.subscribe(TOPIC_FAN2);
+      client.subscribe(TOPIC_LED_POWER);
+      client.subscribe(TOPIC_LED_COLOR);
+      client.subscribe(TOPIC_TARGET_TEMP);
+      client.subscribe(TOPIC_FAN1_MODE);
+      client.subscribe(TOPIC_FAN2_MODE);
+    } else {
+      Serial.print("Ошибка подключения, rc=");
+      Serial.println(client.state());
+      delay(3000);
+    }
+  }
+}
+
+/************************************************
+ *  Публикация статусов 
+ ************************************************/
+void publishGasStatus(bool state) {
+  client.publish(TOPIC_GAS, state ? "1":"0");
+}
+void publishLeakStatus(bool state) {
+  client.publish(TOPIC_LEAK, state ? "1":"0");
+}
+void publishMotionStatus(bool state) {
+  client.publish(TOPIC_MOVING, state ? "1":"0");
+}
+
+/************************************************
+ *  Помпа (активный низ)
+ ************************************************/
+void pumpOn() {
+  digitalWrite(PUMP_PIN, LOW);
+}
+void pumpOff() {
+  digitalWrite(PUMP_PIN, HIGH);
+}
+
+/************************************************
+ *  Управление вентиляторами
+ ************************************************/
+void setFan1(bool state) {
+  fan1State = state;
+  digitalWrite(FAN1_PIN, state ? LOW : HIGH);
+}
+void setFan2(bool state) {
+  fan2State = state;
+  digitalWrite(FAN2_PIN, state ? HIGH : LOW);
+}
+
+/************************************************
+ *  Управление светодиодной лентой
+ ************************************************/
+void setLedPower(bool state) {
+  ledPowerState = state;
+  if (state) {
+    analogWrite(RED_PIN, redValue);
+    analogWrite(GREEN_PIN, greenValue);
+    analogWrite(BLUE_PIN, blueValue);
+  } else {
+    analogWrite(RED_PIN, 0);
+    analogWrite(GREEN_PIN, 0);
+    analogWrite(BLUE_PIN, 0);
+  }
+}
+
+void setLedColor(uint8_t red, uint8_t green, uint8_t blue) {
+  redValue = red;
+  greenValue = green;
+  blueValue = blue;
+  if (ledPowerState) {
+    analogWrite(RED_PIN, redValue);
+    analogWrite(GREEN_PIN, greenValue);
+    analogWrite(BLUE_PIN, blueValue);
+  }
+}
+
+/************************************************
+ *  Публикация данных температуры и влажности
+ ************************************************/
+void publishSensorData(float temperature, float humidity) {
+  char tempString[8];
+  char humString[8];
+  dtostrf(temperature, 6, 2, tempString);
+  dtostrf(humidity, 6, 2, humString);
+  client.publish(TOPIC_TEMPERATURE, tempString);
+  client.publish(TOPIC_HUMIDITY, humString);
+  client.publish(TOPIC_HUMIDITY2, humString);
+}
+
+/************************************************
+ *  Логика управления вентиляторами в авторежиме
+ ************************************************/
+void handleFanAutoMode(float temperature, float humidity) {
+  if (fan1AutoMode) {
+    if (temperature > targetTemperature) {
+      setFan1(true);
+    } else {
+      setFan1(false);
+    }
+  }
+  if (fan2AutoMode) {
+    if (humidity > targetHumidity) {
+      setFan2(true);
+    } else {
+      setFan2(false);
+    }
+  }
+}
+
+/************************************************
+ *  callback: входящие MQTT
+ ************************************************/
+void callback(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  for(int i=0; i<length; i++){
+    msg += (char)payload[i];
+  }
+  Serial.println(String("[MQTT] ") + topic + " => " + msg);
+
+  // Управление помпой ("true"/"false")
+  if (String(topic) == TOPIC_PUMP_POWER) {
+    if (msg == "false") {
+      pumpForcedOff = true;
+      Serial.println("Помпа принудительно выключена (false).");
+      pumpOff();
+    } else {
+      pumpForcedOff = false;
+      Serial.println("Помпа: режим авто (true).");
+    }
+  }
+
+  // Управление вентилятором 1
+  if (String(topic) == TOPIC_FAN1) {
+    if (!fan1AutoMode) { // Если не в авторежиме
+      setFan1(msg == "true");
+      Serial.println(msg == "true" ? "Вентилятор 1 включен" : "Вентилятор 1 выключен");
+    }
+  }
+
+  // Управление вентилятором 2
+  if (String(topic) == TOPIC_FAN2) {
+    if (!fan2AutoMode) { // Если не в авторежиме
+      setFan2(msg == "true");
+      Serial.println(msg == "true" ? "Вентилятор 2 включен" : "Вентилятор 2 выключен");
+    }
+  }
+
+  // Управление светодиодной лентой (вкл/выкл)
+  if (String(topic) == TOPIC_LED_POWER) {
+    setLedPower(msg == "true");
+    Serial.println(msg == "true" ? "Светодиодная лента включена" : "Светодиодная лента выключена");
+  }
+
+  // Управление цветом светодиодной ленты
+  if (String(topic) == TOPIC_LED_COLOR) {
+    // Пример сообщения: "{255, 0, 0}" для красного
+    msg.replace("{", "");
+    msg.replace("}", "");
+    int commaIndex1 = msg.indexOf(',');
+    int commaIndex2 = msg.indexOf(',', commaIndex1 + 1);
+
+    uint8_t red = msg.substring(0, commaIndex1).toInt();
+    uint8_t green = msg.substring(commaIndex1 + 1, commaIndex2).toInt();
+    uint8_t blue = msg.substring(commaIndex2 + 1).toInt();
+
+    setLedColor(red, green, blue);
+    Serial.print("Цвет светодиодной ленты изменен на: ");
+    Serial.print(red);
+    Serial.print(", ");
+    Serial.print(green);
+    Serial.print(", ");
+    Serial.println(blue);
+  }
+
+  // Установка целевой температуры
+  if (String(topic) == TOPIC_TARGET_TEMP) {
+    targetTemperature = msg.toFloat();
+    Serial.print("Установлена целевая температура: ");
+    Serial.println(targetTemperature);
+  }
+
+  // Управление целевой влажностью
+  if (String(topic) == TOPIC_TARGET_HUMIDITY) {
+    targetHumidity = msg.toFloat();
+    Serial.print("Установлена целевая влажность: ");
+    Serial.println(targetHumidity);
+  }
+
+  // Управление режимом вентилятора 1 (авто/ручной)
+  if (String(topic) == TOPIC_FAN1_MODE) {
+    fan1AutoMode = (msg == "true");
+    Serial.println(fan1AutoMode ? "Вентилятор 1: авторежим" : "Вентилятор 1: ручной режим");
+  }
+
+  // Управление режимом вентилятора 2 (авто/ручной)
+  if (String(topic) == TOPIC_FAN2_MODE) {
+    fan2AutoMode = (msg == "true");
+    Serial.println(fan2AutoMode ? "Вентилятор 2: авторежим" : "Вентилятор 2: ручной режим");
+  }
+}
+
+/************************************************
+ *  Setup
+ ************************************************/
+void setup() {
+  Serial.begin(115200);
+
+  // ---- Настраиваем пины ----
+  pinMode(GAS_SENSOR_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  noTone(BUZZER_PIN);
+
+  pinMode(RAIN_SENSOR_PIN, INPUT);
+
+  pinMode(PUMP_PIN, OUTPUT);
+  pumpOff(); // изначально off
+
+  pinMode(MOTION_SENSOR_PIN, INPUT);
+  pinMode(MOTION_LED_PIN, OUTPUT);
+  digitalWrite(MOTION_LED_PIN, LOW);
+
+  // Инициализация TSL2561
+  Wire.begin();
+  Serial.println("Инициализация TSL2561...");
+  if (!tsl.begin()) {
+    Serial.println("Не найден TSL2561, проверьте подключение!");
+    tslReady = false;
+  } else {
+    tslReady = true;
+    Serial.println("TSL2561 успешно инициализирован.");
+    tsl.enableAutoRange(true);
+    tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);
+  }
+  // Светодиод для темноты
+  pinMode(LIGHT_LED_PIN, OUTPUT);
+  digitalWrite(LIGHT_LED_PIN, LOW);
+
+  // Инициализация DHT11
+  dht.begin();
+
+  // Инициализация вентиляторов
+  pinMode(FAN1_PIN, OUTPUT);
+  pinMode(FAN2_PIN, OUTPUT);
+  setFan1(false);
+  setFan2(false);
+
+  // Инициализация светодиодной ленты
+  pinMode(RED_PIN, OUTPUT);
+  pinMode(GREEN_PIN, OUTPUT);
+  pinMode(BLUE_PIN, OUTPUT);
+  analogWrite(RED_PIN, 0);
+  analogWrite(GREEN_PIN, 0);
+  analogWrite(BLUE_PIN, 0);
+
+  // ---- Подключаемся к Wi-Fi + MQTT ----
+  setupWifi();
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback);
+}
+
+/************************************************
+ *  Loop
+ ************************************************/
+void loop() {
+  if (!client.connected()) {
+    mqttReconnect();
+  }
+  client.loop();
+
+  static unsigned long prevMillis = 0;
+  if (millis() - prevMillis >= 1000) {
+    prevMillis = millis();
+
+    // ============== 1) Газ/дым ==============
+    int gasValue = analogRead(GAS_SENSOR_PIN);
+    bool newGas = (gasValue > gasThreshold);
+    if (newGas != gasDetected) {
+      gasDetected = newGas;
+      publishGasStatus(gasDetected);
+      Serial.println(gasDetected ? "Газ обнаружен => 1" : "Газ норма => 0");
+    }
+    if (gasDetected) {
+      tone(BUZZER_PIN, 1000);
+    } else {
+      noTone(BUZZER_PIN);
+    }
+
+    // ============== 2) Протечка ==============
+    int rainValue = analogRead(RAIN_SENSOR_PIN);
+    bool newLeak = (rainValue < 3000);
+    if (newLeak != leakDetected) {
+      leakDetected = newLeak;
+      publishLeakStatus(leakDetected);
+      Serial.println(leakDetected ? "Протечка => 1" : "Нет протечки => 0");
+    }
+
+    // ============== 3) Движение ==============
+    bool newMotion = (digitalRead(MOTION_SENSOR_PIN) == HIGH);
+    if (newMotion != motionDetected) {
+      motionDetected = newMotion;
+      publishMotionStatus(motionDetected);
+      Serial.println(motionDetected ? "Движение => 1" : "Нет движения => 0");
+    }
+    // LED
+    digitalWrite(MOTION_LED_PIN, motionDetected ? HIGH : LOW);
+
+    // ============== 4) Помпа ==============
+    if (pumpForcedOff) {
+      pumpOff();
+    } else {
+      if (leakDetected) {
+        pumpOff();
+      } else {
+        pumpOn();
+      }
+    }
+
+    // ============== 5) Освещённость TSL2561 ==============
+    if (tslReady) {
+      sensors_event_t event;
+      tsl.getEvent(&event);
+      if (event.light) {
+        Serial.print("Освещённость: ");
+        Serial.print(event.light);
+        Serial.println(" люкс");
+
+        // Если меньше порога => включаем LED, иначе выключаем
+        if (event.light < LIGHT_THRESHOLD) {
+          digitalWrite(LIGHT_LED_PIN, HIGH);
+        } else {
+          digitalWrite(LIGHT_LED_PIN, LOW);
+        }
+      } else {
+        Serial.println("Не удалось прочитать TSL2561.");
+      }
+    }
+
+    // ============== 6) Температура и влажность ==============
+    float humidity = dht.readHumidity();
+    float temperature = dht.readTemperature();
+
+    if (isnan(humidity) || isnan(temperature)) {
+      Serial.println("Ошибка чтения данных с датчика DHT11!");
+      dht.begin();
+    } else {
+      publishSensorData(temperature, humidity);
+      Serial.print("Температура: ");
+      Serial.print(temperature);
+      Serial.print(" °C, Влажность: ");
+      Serial.print(humidity);
+      Serial.print(" %, Целевая температура: ");
+      Serial.println(targetTemperature);
+      Serial.print(" %, Целевая влажность: ");
+      Serial.println(targetHumidity);
+
+      // Управление вентиляторами в авторежиме
+      handleFanAutoMode(temperature, humidity);
+    }
+
+    // Debug
+    Serial.print("GasVal=");
+    Serial.print(gasValue);
+    Serial.print("  RainVal=");
+    Serial.println(rainValue);
+  }
+}
