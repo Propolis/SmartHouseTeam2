@@ -1,0 +1,51 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_TSL2561_U.h>
+
+// Инициализация датчика TSL2561
+Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
+
+#define LED_PIN 2 // Пин для светодиода
+#define LIGHT_THRESHOLD 10 // Порог освещенности в люксах (настраиваемый)
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Инициализация датчика TSL2561...");
+
+  if (!tsl.begin()) {
+    Serial.println("Ошибка: не удалось найти датчик TSL2561. Проверьте подключение!");
+    while (1);
+  }
+
+  // Настройка датчика
+  tsl.enableAutoRange(true); // Автоматический выбор диапазона
+  tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS); // Длительность интеграции
+
+  // Настройка пина для светодиода
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW); // Отключить диод изначально
+
+  Serial.println("Датчик TSL2561 успешно инициализирован.");
+}
+
+void loop() {
+  sensors_event_t event;
+  tsl.getEvent(&event);
+
+  if (event.light) {
+    Serial.print("Освещенность: ");
+    Serial.print(event.light);
+    Serial.println(" люкс");
+
+    if (event.light < LIGHT_THRESHOLD) {
+      // Темно - включаем светодиод
+      digitalWrite(LED_PIN, HIGH);
+    } else {
+      // Светло - выключаем светодиод
+      digitalWrite(LED_PIN, LOW);
+    }
+  } else {
+    Serial.println("Не удалось прочитать данные с датчика.");
+  }
+  delay(500); // Небольшая задержка для обновления данных
+}
