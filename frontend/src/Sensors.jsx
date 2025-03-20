@@ -1,6 +1,6 @@
 import React from 'react';
 
-function Sensors({ motion, smoke, protechka, pompaState, togglePompa, notifications }) {
+function Sensors({ motion, smoke, protechka, pompaState, togglePompa, securityState, toggleSecurity, notifications }) {
     return (
         <div className="tabcontent">
             <h2>Датчики</h2>
@@ -15,6 +15,19 @@ function Sensors({ motion, smoke, protechka, pompaState, togglePompa, notificati
 	    <div className="sensor-tile">
                 <h3>Протечка</h3>
                 <p><span id="protechka">{protechka}</span></p>
+            </div>
+            <h2> </h2>
+	    <div className="sensor-tile">
+                <h3>Режим охраны</h3>
+		<label className="switch">
+                    <input
+                        type="checkbox"
+                        id="securitySwitch"
+                        checked={securityState}
+                        onChange={toggleSecurity}
+                    />
+                    <span className="slider"></span>
+                </label>
             </div>
 	    <div className="sensor-tile">
                 <h3>Подача воды</h3>

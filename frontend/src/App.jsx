@@ -42,6 +42,7 @@ const App = () => {
     const [lampColor, setLampColor] = useState('#FFFFFF');
 
     const [pompaState, setPompaState] = useState(false);
+    const [securityState, setSecurityState] = useState(false);
 
     const [notifications, setNotifications] = useState([]);
     const [activeTab, setActiveTab] = useState('Microclimate');
@@ -66,6 +67,7 @@ const App = () => {
                 setSmoke(data.smoke);
 
                 setPompaState(data.Pompa);
+                setSecurityState(data.securityState);
 
                 setFanThreshold(data.TemperaturePorog);
                 setBathFanThreshold(data.VlaznostPorog);
@@ -93,6 +95,10 @@ const App = () => {
 
                 if (data.Pompa !== pompaState) {
                     setPompaState(data.Pompa === "true");
+                }
+
+                if (data.securityState !== securityState) {
+                    setSecurityState(data.securityState === "true");
                 }
 
                 if (data.Rezimi_Klimat_Kontrol !== autoMode) {
@@ -224,8 +230,28 @@ const App = () => {
                 }
             })
             .catch(err => {
-                console.error("Ошибка переключения вентилятора:", err);
+                console.error("Ошибка переключения помпы:", err);
                 setPompaState(newState); // Откат состояния в случае ошибки
+            });
+    };
+
+    const toggleSecurity = () => {
+        const newState = !securityState; // Новое состояние переключателя (переключаемся на противоположное)
+        fetch('/api/toggle-module/securityState', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                // Проверяем, что пришел ответ с актуальным состоянием устройства
+                if (data.securityState !== undefined) {
+                    const actualState = data.securityState === "true"; // Преобразуем строку в булево значение
+                    setSecurityState(actualState); // Обновляем состояние фронта
+                } else {
+                    console.error("Некорректный ответ от сервера:", data);
+                    setSecurityState(newState); // Откат состояния в случае ошибки
+                }
+            })
+            .catch(err => {
+                console.error("Ошибка переключения режима охраны:", err);
+                setSecurityState(newState); // Откат состояния в случае ошибки
             });
     };
 
@@ -318,6 +344,8 @@ const App = () => {
                     protechka={protechka}
                     pompaState={pompaState}
                     togglePompa={togglePompa}
+                    securityState={securityState}
+                    toggleSecurity={toggleSecurity}
                     notifications={notifications}
                 />
             )}
