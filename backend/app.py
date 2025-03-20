@@ -9,7 +9,7 @@ import time
 
 TOPICS = ["RGBLenta_Bedroom", "Klimat_Kontrol", "powerVentilation",
           "toggleRGB", "Protechka", "VentilationVlaznost", "VlaznostPorog",
-          "ModeVentilation", "Pompa", "Rezimi_Klimat_Kontrol", "TemperaturePorog"
+          "ModeVentilation", "Pompa", "securityState", "Rezimi_Klimat_Kontrol", "TemperaturePorog"
 
           ]
 
@@ -51,6 +51,7 @@ def get_data():
         "ModeVentilation": mqtt_handler.sensor_states.get("ModeVentilation"),
         "Rezimi_Klimat_Kontrol": mqtt_handler.sensor_states.get("Rezimi_Klimat_Kontrol"),
         "Pompa": mqtt_handler.sensor_states.get("Pompa"),
+        "securityState": mqtt_handler.sensor_states.get("securityState"),
         "TemperaturePorog": mqtt_handler.sensor_states.get("TemperaturePorog"),
     }
 
