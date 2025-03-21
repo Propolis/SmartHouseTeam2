@@ -1,0 +1,277 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+#include <HTTPClient.h> // Для отправки HTTP-запросов
+
+/************************************************
+ *  Telegram Bot настройки
+ ************************************************/
+const char* telegramBotToken = "8063880246:AAFdLAnE__uyl8RhIOpz8S6K7MTfftAv7Ag"; // Замените на токен вашего бота
+const char* telegramChatID = "5143836769";     // Замените на ваш Chat ID
+const int waterLevelAlertThreshold = 20;        // Порог уровня воды для уведомления (%)
+
+/************************************************
+ *  Пины
+ ************************************************/
+#define SENSOR_PIN 33          // Пин датчика влажности почвы
+#define WATER_LEVEL_PIN 34      // Пин датчика уровня воды
+#define RELAY_PIN 4             // Пин управления реле
+
+/************************************************
+ *  Wi-Fi настройки
+ ************************************************/
+const char* ssid = "Vardges";
+const char* password = "12345678";
+
+/************************************************
+ *  MQTT настройки
+ ************************************************/
+const char* mqttServer = "m1.wqtt.ru";
+const int mqttPort = 13010;
+const char* mqttUser = "u_TNQXY5";
+const char* mqttPassword = "6En7SeKP";
+
+/************************************************
+ *  Калибровка датчика
+ ************************************************/
+const int dryValue = 4095;      // Значение в воздухе (12-bit ADC)
+const int wetValue = 0;         // Значение в воде
+int moistureThresholdLow = 25;  // Нижний порог влажности (%)
+int moistureThresholdHigh = 60; // Верхний порог влажности (%)
+bool autoMode = true;           // Режим работы (true = авто)
+bool pumpState = false;         // Текущее состояние насоса
+bool lastPumpState = false;     // Предыдущее состояние насоса
+bool waterLevelAlertSent = false; // Флаг для отслеживания отправки уведомления
+bool pumpForcedOff = false;     // Флаг принудительного отключения насоса
+
+/************************************************
+ *  Глобальные переменные
+ ************************************************/
+WiFiClient espClient;
+PubSubClient client(espClient);
+unsigned long lastMsg = 0;
+const long interval = 5000;
+
+/************************************************
+ *  Подключение к Wi-Fi
+ ************************************************/
+void setupWiFi() {
+    Serial.print("Подключение к ");
+    Serial.println(ssid);
+    
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    
+    Serial.println("\nWiFi подключен!");
+    Serial.print("IP адрес: ");
+    Serial.println(WiFi.localIP());
+}
+
+/************************************************
+ *  Настройка MQTT
+ ************************************************/
+void setupMQTT() {
+    client.setServer(mqttServer, mqttPort);
+    client.setCallback(callback);
+}
+
+/************************************************
+ *  Переподключение к MQTT
+ ************************************************/
+void reconnectMQTT() {
+    while (!client.connected()) {
+        Serial.print("Попытка подключения к MQTT...");
+        
+        if (client.connect("ESP32Client", mqttUser, mqttPassword)) {
+            Serial.println("Успешно!");
+            
+            // Подписка на топики
+            client.subscribe("SmartPot");
+            client.subscribe("LowThreshold");
+            client.subscribe("HighThreshold");
+            client.subscribe("modePot");
+        } else {
+            Serial.print("Ошибка, код: ");
+            Serial.print(client.state());
+            Serial.println(" Повтор через 5 секунд...");
+            delay(5000);
+        }
+    }
+}
+
+/************************************************
+ *  Обработка входящих сообщений
+ ************************************************/
+void callback(char* topic, byte* payload, unsigned int length) {
+    String message;
+    for (int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+    
+    Serial.print("Получено в [");
+    Serial.print(topic);
+    Serial.print("]: ");
+    Serial.println(message);
+
+
+    // Обработка команд
+    if (strcmp(topic, "SmartPot") == 0) {
+        handlePumpControl(message);
+    } 
+    else if (strcmp(topic, "LowThreshold") == 0) {
+        moistureThresholdLow = message.toInt();
+        Serial.print("Новый нижний порог: ");
+        Serial.println(moistureThresholdLow);
+    } 
+    else if (strcmp(topic, "HighThreshold") == 0) {
+        moistureThresholdHigh = message.toInt();
+        Serial.print("Новый верхний порог: ");
+        Serial.println(moistureThresholdHigh);
+    } 
+    else if (strcmp(topic, "modePot") == 0) {
+        autoMode = (message == "auto" || message == "1");
+        Serial.print("Режим: ");
+        Serial.println(autoMode ? "Авто" : "Ручной");
+    }
+}
+
+/************************************************
+ *  Управление насосом
+ ************************************************/
+void handlePumpControl(String message) {
+    if (message == "on" || message == "1") {
+        pumpState = true;
+    } else if (message == "off" || message == "0") {
+        pumpState = false;
+    } else {
+        StaticJsonDocument<50> doc;
+        DeserializationError error = deserializeJson(doc, message);
+        if (!error) {
+            pumpState = doc["state"];
+        }
+    }
+    togglePump(pumpState);
+}
+
+void togglePump(bool state) {
+    if (state == lastPumpState) return; // Не изменять состояние, если оно уже установлено
+    
+    digitalWrite(RELAY_PIN, state ? HIGH : LOW); // LOW = включить реле, HIGH = выключить
+    lastPumpState = state;
+    
+    Serial.print("Насос: ");
+    Serial.println(state ? "ВКЛ" : "ВЫКЛ");
+    
+    // Публикация состояния
+    client.publish("SmartPot/state", state ? "on" : "off");
+}
+
+/************************************************
+ *  Отправка сообщения в Telegram
+ ************************************************/
+void sendTelegramMessage(const char* message) {
+    HTTPClient http;
+    String url = "https://api.telegram.org/bot" + String(telegramBotToken) + "/sendMessage";
+    String payload = "chat_id=" + String(telegramChatID) + "&text=" + String(message);
+    
+    http.begin(url);
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    
+    int httpResponseCode = http.POST(payload);
+    if (httpResponseCode > 0) {
+        Serial.print("Сообщение отправлено в Telegram, код ответа: ");
+        Serial.println(httpResponseCode);
+    } else {
+        Serial.print("Ошибка отправки сообщения в Telegram: ");
+        Serial.println(httpResponseCode);
+    }
+    http.end();
+}
+
+/************************************************
+ *  Измерение параметров
+ ************************************************/
+void soilMoisture() {
+    int moistureRaw = readMoisture();
+    int moisturePercent = map(moistureRaw, dryValue, wetValue, 0, 100);
+    moisturePercent = constrain(moisturePercent, 0, 100);
+    
+    int waterLevelPercent = getWaterLevel();
+    
+    // Публикация влажности почвы
+    char moistureStr[8];
+    sprintf(moistureStr, "%d", moisturePercent);
+    client.publish("VlaznostPochvi", moistureStr);
+    
+    // Публикация уровня воды
+    char waterLevelStr[8];
+    sprintf(waterLevelStr, "%d", waterLevelPercent);
+    client.publish("LevelWater", waterLevelStr);
+
+    // Проверка уровня воды и отправка уведомления
+    if (waterLevelPercent < waterLevelAlertThreshold && !waterLevelAlertSent) {
+        sendTelegramMessage("⚠️ Внимание! Уровень воды в резервуаре ниже 20%. Пожалуйста, пополните резервуар.");
+        waterLevelAlertSent = true; // Устанавливаем флаг, чтобы не отправлять уведомление повторно
+    } else if (waterLevelPercent >= waterLevelAlertThreshold) {
+        waterLevelAlertSent = false; // Сбрасываем флаг, если уровень воды восстановился
+    }
+
+    // Логика автоматического полива
+    if (autoMode == true) {
+        if (moisturePercent < moistureThresholdLow && pumpForcedOff == true) {
+            togglePump(true); // Включить насос
+        } else if (moisturePercent > moistureThresholdHigh && pumpForcedOff == true) {
+            togglePump(false); // Выключить насос
+        }
+    }
+}
+
+
+int readMoisture() {
+    int sum = 0;
+    for (int i = 0; i < 10; i++) {
+        sum += analogRead(SENSOR_PIN);
+        delay(2);
+    }
+    return sum / 10;
+}
+
+int getWaterLevel() {
+    int value = analogRead(WATER_LEVEL_PIN);
+    return constrain(map(value, 0, 4095, 0, 100), 0, 100);
+}
+
+/************************************************
+ *  Setup
+ ************************************************/
+void setup() {
+    Serial.begin(115200);
+    
+    analogReadResolution(12);
+    analogSetAttenuation(ADC_11db);
+    
+    pinMode(RELAY_PIN, OUTPUT);
+    digitalWrite(RELAY_PIN, HIGH); // Выключить реле (HIGH = выключено)
+    
+    setupWiFi();
+    setupMQTT();
+}
+
+/************************************************
+ *  Loop
+ ************************************************/
+void loop() {
+    if (!client.connected()) {
+        reconnectMQTT();
+    }
+    client.loop();
+
+    unsigned long now = millis();
+    if (now - lastMsg > interval) {
+        lastMsg = now;
+        soilMoisture();
+    }
+}
