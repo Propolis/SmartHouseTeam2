@@ -108,6 +108,22 @@ input[type="number"] {
     align-items: center;
     gap: 10px;
     justify-content: center;
+    max-width: 100%; /* Ограничиваем ширину */
+    flex-wrap: wrap; /* Переносим элементы на новую строку, если не хватает места */
+}
+
+.flex-row input[type="number"] {
+    flex: 1; /* Поле ввода занимает доступное пространство */
+    min-width: 150px; /* Минимальная ширина для поля ввода */
+    max-width: calc(100% - 110px); /* Максимальная ширина с учетом кнопки */
+}
+
+.flex-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
 .notifications {

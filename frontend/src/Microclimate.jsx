@@ -55,13 +55,17 @@ function Microclimate({
                 </label>
             </div>
 
-            {autoMode && (
-                <div className="flex-row">
-                    <p>Порог температуры: <span id="fanThreshold">{fanThreshold}°C</span></p>
-                    <input type="number" id="fanThresholdInput" placeholder="Введите порог" />
-                    <button onClick={handleSetFanThreshold}>Установить</button>
-                </div>
+	    {autoMode && (
+    		<div className="flex-column">
+        	    <p>Порог температуры: <span id="fanThreshold">{fanThreshold}°C</span></p>
+        	    <div className="flex-row">
+            	        <input type="number" id="fanThresholdInput" placeholder="Введите порог" />
+            	        <button onClick={handleSetFanThreshold}>Установить</button>
+        	    </div>
+    	        </div>
             )}
+
+
             <div className="flex-row">
                 <p>Режим управления: <span id="autoMode">{autoMode ? 'Автоматический' : 'Ручной'}</span></p>
                 <button onClick={toggleAutoMode}>Переключить режим</button>
@@ -84,13 +88,15 @@ function Microclimate({
                 <h3>Влажность</h3>
                 <p id="bathHumidity">{bathHumidity}%</p>
             </div>
-            {bathAutoMode && (
-                <div className="flex-row">
-                    <p>Порог влажности: <span id="bathFanThreshold">{bathFanThreshold}%</span></p>
-                    <input type="number" id="bathFanThresholdInput" placeholder="Введите порог" />
-                    <button onClick={handleSetBathFanThreshold}>Установить</button>
-                </div>
-            )}
+	    {bathAutoMode && (
+    		<div className="flex-column">
+        	    <p>Порог влажности: <span id="bathFanThreshold">{bathFanThreshold}%</span></p>
+        	    <div className="flex-row">
+            		<input type="number" id="bathFanThresholdInput" placeholder="Введите порог" />
+            		<button onClick={handleSetBathFanThreshold}>Установить</button>
+        	    </div>
+    		</div>
+	    )}
             <div className="flex-row">
                 <p>Режим управления: <span id="bathAutoMode">{bathAutoMode ? 'Автоматический' : 'Ручной'}</span></p>
                 <button onClick={toggleBathAutoMode}>Переключить режим</button>
