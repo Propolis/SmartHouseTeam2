@@ -11,6 +11,7 @@ TOPICS = ["RGBLenta_Bedroom", "Klimat_Kontrol", "powerVentilation",
           "toggleRGB", "Protechka", "VentilationVlaznost", "VlaznostPorog",
           "ModeVentilation", "Pompa", "securityState", "Rezimi_Klimat_Kontrol", "TemperaturePorog"
 
+
           ]
 
 # Название модуля, топики состояния и управления должны называться одинаково (на WQTT)
@@ -38,7 +39,7 @@ def get_data():
 
     data = {
         "temperature": mqtt_handler.sensor_states.get("Klimat_Temperature"),
-        "humidity": mqtt_handler.sensor_states.get("KlimatHumidity"),
+        "humidity": mqtt_handler.sensor_states.get("VentilationVlaznost"),
         "motion": mqtt_handler.sensor_states.get("Moving"),
         "smoke": mqtt_handler.sensor_states.get("Gas"),
         "State_of_Lamp_Bedroom": mqtt_handler.sensor_states.get("RGBLenta_Bedroom"),
