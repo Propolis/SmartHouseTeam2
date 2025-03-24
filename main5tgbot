@@ -9,8 +9,8 @@
 /************************************************
  *  Данные для Telegram бота
  ************************************************/
-String botToken = "8031515998:AAHYZ3WZ3h6oTb5WDgFzAoLUEB4ecw8xEfQ"; // API токен Telegram бота
-String chatId = "6512586955";  // ID чата в Telegram
+String botToken = "99999999:AAHHHHHHHHDgFzAoLUEB4ecw8xEfQ"; // API токен Telegram бота
+String chatId = "999999999";  // ID чата в Telegram
 
 // Функция для URL-кодирования строки (простой вариант)
 String urlEncode(String str) {
@@ -52,16 +52,16 @@ void sendTelegramMessage(String message) {
 /************************************************
  *  Wi-Fi настройки
  ************************************************/
-const char* ssid     = "Vardges";
-const char* password = "12345678";
+const char* ssid     = "admin";
+const char* password = "admin";
 
 /************************************************
  *  MQTT настройки (WQTT)
  ************************************************/
 const char* mqttServer = "m1.wqtt.ru";
 const int   mqttPort   = 13010;
-const char* mqttUser   = "u_TNQXY5";
-const char* mqttPass   = "6En7SeKP";
+const char* mqttUser   = "u_TTTTTT";
+const char* mqttPass   = "PASSWORD";
 
 /************************************************
  *  Пины
