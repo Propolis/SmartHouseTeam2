@@ -1,4 +1,3 @@
-# app.py
 import threading
 from mqtt_client import MQTTHandler
 from flask import Flask, jsonify, request
