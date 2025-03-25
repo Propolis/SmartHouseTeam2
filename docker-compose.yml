@@ -1,15 +1,13 @@
-version: '3.8'
-
 services:
   frontend:
     build:
       context: ./frontend
     image: krokant/front_dom:latest
     ports:
-      - "3000:80"  # React обычно работает на 3000
+      - "3000:80"
     volumes:
-      - ./frontend:/app  # Монтируем код внутрь контейнера
-      - /app/node_modules  # Исключаем node_modules, чтобы не было конфликтов
+      - ./frontend:/app
+      - /app/node_modules
     networks:
       - my_network
     depends_on:
@@ -18,11 +16,18 @@ services:
   backend:
     build:
       context: ./backend
+    environment:
+      - MQTT_SERVER=${MQTT_SERVER}
+      - MQTT_PORT=${MQTT_PORT}
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - MQTT_TOPICS_MONITORING_CONDITION=${MQTT_TOPICS_MONITORING_CONDITION}
+      - MQTT_TOKEN_AUTHORIZATION=${MQTT_TOKEN_AUTHORIZATION}
     image: krokant/backend_dom:latest
     ports:
       - "3001:5000"
     volumes:
-      - ./backend:/app  # Монтируем код внутрь контейнера
+      - ./backend:/app
     networks:
       - my_network
 

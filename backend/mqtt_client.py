@@ -43,19 +43,3 @@ class MQTTHandler:
         self.client.publish(topic, payload)
         print(f"📤 Отправлена команда: {payload} в {topic}")
 
-
-# Пример использования (тестовый запуск)
-if __name__ == "__main__":
-    # Задаем параметры подключения и список топиков (модулей)
-    mqtt_handler = MQTTHandler(server="m1.wqtt.ru", port=13010, user="u_TNQXY5", password="6En7SeKP",
-                               topics=["Lamp1", "Lamp2"])
-
-    # Запускаем MQTT-клиент в фоновом режиме
-    mqtt_handler.start()
-
-    # Немного подождем, чтобы клиент успел подключиться и подписаться
-    import time
-
-    # Оставляем приложение запущенным
-    while True:
-        time.sleep(1)

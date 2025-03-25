@@ -1,24 +1,21 @@
 # app.py
-
 import threading
 from mqtt_client import MQTTHandler
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from dotenv import load_dotenv
 import time
+import os
+load_dotenv()
 
 
-TOPICS = ["RGBLenta_Bedroom", "Klimat_Kontrol", "powerVentilation",
-          "toggleRGB", "Protechka", "VentilationVlaznost", "VlaznostPorog",
-          "ModeVentilation", "Pompa", "securityState", "Rezimi_Klimat_Kontrol", "TemperaturePorog"
-
-
-          ]
+MQTT_TOPICS_MONITORING_CONDITION = os.getenv("MQTT_TOPICS_MONITORING_CONDITION", "").replace(" ", "").split(",")
 
 # Название модуля, топики состояния и управления должны называться одинаково (на WQTT)
 # Это же название модуля записываем в список переменной "modules"
-mqtt_handler = MQTTHandler(server="m1.wqtt.ru", port=13010, user="u_TNQXY5", password="6En7SeKP",
-                           topics=TOPICS)
-
+mqtt_handler = MQTTHandler(
+    server=os.getenv("MQTT_SERVER"), port=int(os.getenv("MQTT_PORT")), user=os.getenv("MQTT_USER"),
+    password=os.getenv("MQTT_PASSWORD"), topics=MQTT_TOPICS_MONITORING_CONDITION)
 
 
 # Запускаем MQTT-клиент в отдельном потоке, чтобы он работал параллельно с Flask
@@ -30,10 +27,10 @@ CORS(app)
 
 HEADERS = {
     "Content-Type": "application/json",
-    "Authorization": "Token tHmprxyviek19E0HztiulNf8TbfOdAMlGYH8aIcerjP6nGeEB2Wone6U"
+    "Authorization": os.getenv("MQTT_TOKEN_AUTHORIZATION")
 }
 
-# Пример эндпоинта /data, который возвращает JSON для фронтенда
+
 @app.route('/data', methods=['GET'])
 def get_data():
 
@@ -63,7 +60,7 @@ def get_data():
 def toggle_module(module_name):
 
     """
-    Переключает состояние указанного модуля вида 0 / 1.
+    Переключает состояние указанного модуля вида true / false.
     """
     if module_name not in mqtt_handler.modules:
         return jsonify({"status": "error", "message": f"Неизвестный модуль: {module_name}"}), 400
@@ -93,8 +90,13 @@ def set_light_color():
         color_from_broker = mqtt_handler.sensor_states.get(module_name, "0")
         if color_from_broker == color_from_frontend:
             return jsonify({"status": "success", "color": color_from_frontend}), 200
-        return jsonify({"status": "error, no change", "message": f"broker: {color_from_broker}, frontend: {color_from_frontend}"}), 400
+        return jsonify(
+            {
+                "status": "error, no change",
+                "message": f"broker: {color_from_broker}, frontend: {color_from_frontend}"
+            }), 400
     return jsonify({"status": "Not Modified", "message": "If-Modified-Since"}), 304
+
 
 @app.route('/api/setFanThreshold/<module_topic>', methods=['POST'])
 def threshold_of_modules(module_topic):
@@ -108,15 +110,17 @@ def threshold_of_modules(module_topic):
         time.sleep(0.1)
         threshold_from_broker = int(mqtt_handler.sensor_states.get(module_topic, "0"))
         if threshold_from_broker == threshold_from_frontend:
-            return jsonify({"status": "success", module_topic: new_state}), 200
+            return jsonify(
+                {
+                    "status": "success", module_topic: new_state
+                }), 200
         return jsonify(
-            {"status": "error, no changes", "message": f"broker:{threshold_from_broker} frontend:{threshold_from_frontend}"}), 400
+            {
+                "status": "error, no changes",
+                "message": f"broker:{threshold_from_broker} frontend:{threshold_from_frontend}"
+            }), 400
     return jsonify({"status": "Not Modified", "message": f"If-Modified-Since"}), 304
 
-@app.route('/toggleAutoMode', methods=['GET'])
-def toggle_auto_mode():
-    # Логика переключения авто/ручного режима
-    return "Режим переключен"
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3001)
+    app.run(host="0.0.0.0", port=5000, debug=True)
