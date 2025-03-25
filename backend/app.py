@@ -33,26 +33,8 @@ HEADERS = {
 
 @app.route('/data', methods=['GET'])
 def get_data():
-
-    data = {
-        "temperature": mqtt_handler.sensor_states.get("Klimat_Temperature"),
-        "humidity": mqtt_handler.sensor_states.get("VentilationVlaznost"),
-        "motion": mqtt_handler.sensor_states.get("Moving"),
-        "smoke": mqtt_handler.sensor_states.get("Gas"),
-        "State_of_Lamp_Bedroom": mqtt_handler.sensor_states.get("RGBLenta_Bedroom"),
-        "State_of_Ventilation": mqtt_handler.sensor_states.get("powerVentilation"),
-        "State_of_Klimat_Kontrol": mqtt_handler.sensor_states.get("Klimat_Kontrol"),
-        "toggleRGB": mqtt_handler.sensor_states.get("toggleRGB"),
-        "Protechka": mqtt_handler.sensor_states.get("Protechka"),
-        "Humidity_bathroom": mqtt_handler.sensor_states.get("VentilationVlaznost"),
-        "VlaznostPorog": mqtt_handler.sensor_states.get("VlaznostPorog"),
-        "ModeVentilation": mqtt_handler.sensor_states.get("ModeVentilation"),
-        "Rezimi_Klimat_Kontrol": mqtt_handler.sensor_states.get("Rezimi_Klimat_Kontrol"),
-        "Pompa": mqtt_handler.sensor_states.get("Pompa"),
-        "securityState": mqtt_handler.sensor_states.get("securityState"),
-        "TemperaturePorog": mqtt_handler.sensor_states.get("TemperaturePorog"),
-    }
-
+    # Ключ в JSON-ответе соответствует имени топика на MQTT-брокере
+    data = {topic: mqtt_handler.sensor_states.get(topic) for topic in MQTT_TOPICS_MONITORING_CONDITION}
     return jsonify(data), 200
 
 
@@ -95,7 +77,7 @@ def set_light_color():
                 "status": "error, no change",
                 "message": f"broker: {color_from_broker}, frontend: {color_from_frontend}"
             }), 400
-    return jsonify({"status": "Not Modified", "message": "If-Modified-Since"}), 304
+    return jsonify({"status": "Not Modified", "message": "If-Modified-Since"}), 200
 
 
 @app.route('/api/setFanThreshold/<module_topic>', methods=['POST'])
