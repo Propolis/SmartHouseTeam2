@@ -11,11 +11,10 @@ load_dotenv()
 
 MQTT_TOPICS_MONITORING_CONDITION = os.getenv("MQTT_TOPICS_MONITORING_CONDITION", "").replace(" ", "").split(",")
 
-# Название модуля, топики состояния и управления должны называться одинаково (на WQTT)
-# Это же название модуля записываем в список переменной "modules"
 mqtt_handler = MQTTHandler(
     server=os.getenv("MQTT_SERVER"), port=int(os.getenv("MQTT_PORT")), user=os.getenv("MQTT_USER"),
-    password=os.getenv("MQTT_PASSWORD"), topics=MQTT_TOPICS_MONITORING_CONDITION)
+    password=os.getenv("MQTT_PASSWORD"), topics=MQTT_TOPICS_MONITORING_CONDITION
+)
 
 
 # Запускаем MQTT-клиент в отдельном потоке, чтобы он работал параллельно с Flask
@@ -33,7 +32,7 @@ HEADERS = {
 
 @app.route('/data', methods=['GET'])
 def get_data():
-    # Ключ в JSON-ответе соответствует имени топика на MQTT-брокере
+    # Ключ в JSON-ответе соответствует имени топика состояния на WQTT-брокере
     data = {topic: mqtt_handler.sensor_states.get(topic) for topic in MQTT_TOPICS_MONITORING_CONDITION}
     return jsonify(data), 200
 
