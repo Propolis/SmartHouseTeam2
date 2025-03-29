@@ -8,7 +8,7 @@
 ### **Стек технологий**
    - **Фронтенд**: *React (SPA)  + Nginx (раздача статических файлов).*
    - **Бэкенд**:  *Flask (REST API) + Gunicorn (WSGI-сервер) + MQTT (взаимодействие с IoT устройствами).*
-   - **Инфраструктура**:  ***Docker Compose, Nginx (reverse proxy).*
+   - **Инфраструктура**:  *Docker Compose, Nginx (reverse proxy).*
 
 
 
